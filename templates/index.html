@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LocaGed OCR</title>
+    <style>
+      :root {
+        --bg0: #0b1220;
+        --bg1: #0f1b33;
+        --card: rgba(255, 255, 255, 0.92);
+        --card2: rgba(255, 255, 255, 0.86);
+        --text: #0f172a;
+        --muted: #5b6b86;
+        --border: rgba(15, 23, 42, 0.12);
+        --primary: #2563eb;
+        --primary2: #1d4ed8;
+        --ok: #16a34a;
+        --warn: #f59e0b;
+        --error: #dc2626;
+        --shadow: 0 18px 50px rgba(2, 6, 23, 0.35);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        min-height: 100vh;
+        background: radial-gradient(1200px 700px at 20% 0%, rgba(37, 99, 235, 0.35), transparent 55%),
+          radial-gradient(900px 600px at 90% 20%, rgba(16, 185, 129, 0.18), transparent 55%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 22px 18px 40px;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .title {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: -0.02em;
+        color: #ffffff;
+      }
+      .subtitle {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 14px;
+        max-width: 720px;
+        line-height: 1.35;
+      }
+      .userbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(10px);
+      }
+      .card {
+        background: var(--card);
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 16px;
+        margin-bottom: 14px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+      .card.soft {
+        background: var(--card2);
+      }
+      .dropzone {
+        border: 2px dashed rgba(37, 99, 235, 0.35);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        color: var(--muted);
+        transition: all 0.15s ease;
+        background: rgba(37, 99, 235, 0.04);
+      }
+      .dropzone.dragover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(37, 99, 235, 0.10);
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      button,
+      .link-btn {
+        border: 0;
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      button.primary {
+        background: linear-gradient(180deg, var(--primary), var(--primary2));
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+      }
+      button.secondary,
+      .link-btn {
+        background: rgba(15, 23, 42, 0.06);
+        color: #0f172a;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .file-list,
+      .status-list {
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .file-list li,
+      .status-list li {
+        border-top: 1px solid var(--border);
+        padding: 8px 0;
+        font-size: 14px;
+      }
+      .group-title {
+        border-top: 1px solid var(--border);
+        padding: 10px 0 6px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: rgba(15, 23, 42, 0.65);
+      }
+      .path {
+        color: var(--muted);
+        font-family: monospace;
+      }
+      .status-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .progress-wrap {
+        height: 8px;
+        border-radius: 99px;
+        background: #e6edf9;
+        overflow: hidden;
+      }
+      .progress-bar {
+        height: 100%;
+        width: 0%;
+        background: var(--primary);
+        transition: width 0.2s ease;
+      }
+      .meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .msg {
+        color: var(--muted);
+        margin-top: 6px;
+        min-height: 18px;
+      }
+      .state-ok {
+        color: var(--ok);
+      }
+      .state-running {
+        color: var(--warn);
+      }
+      .state-error {
+        color: var(--error);
+      }
+      .downloads {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .export {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(37, 99, 235, 0.22);
+        background: rgba(37, 99, 235, 0.06);
+      }
+      .export h3 {
+        margin: 0 0 8px;
+        font-size: 14px;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        color: rgba(15, 23, 42, 0.78);
+        word-break: break-all;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-top: 8px;
+      }
+      .hidden {
+        display: none;
+      }
+      input[type="file"] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="topbar">
+        <div class="brand">
+          <h1 class="title">LocaGed OCR</h1>
+          <p class="subtitle">
+            Traitement interne: OCR + PDF compresse, arborescence conservee, export groupe dans
+            <span class="mono" style="color: rgba(255,255,255,0.85)">fichiers_traites/</span>
+          </p>
+        </div>
+        <div class="userbox">
+          <span class="pill"><span>Connecte</span><strong>{{ username }}</strong></span>
+          <a class="link-btn" href="/exports">Exports</a>
+          <a class="link-btn" href="/logout">Deconnexion</a>
+        </div>
+      </header>
+
+      <section class="card">
+        <div id="dropzone" class="dropzone">
+          Glissez-deposez des PDF ou un dossier ici
+        </div>
+        <div class="controls">
+          <button id="pickFilesBtn" class="secondary" type="button">Selectionner fichiers</button>
+          <button id="pickFolderBtn" class="secondary" type="button">Selectionner dossier</button>
+          <button id="startBtn" class="primary" type="button" disabled>Lancer le traitement</button>
+          <button id="resetBtn" class="secondary hidden" type="button">Nouveau traitement</button>
+        </div>
+        <input id="filesInput" type="file" accept=".pdf,application/pdf" multiple />
+        <input id="folderInput" type="file" accept=".pdf,application/pdf" webkitdirectory directory multiple />
+        <ul id="detectedFiles" class="file-list"></ul>
+        <div id="message" class="msg"></div>
+      </section>
+
+      <section id="statusCard" class="card soft hidden">
+        <div class="status-head">
+          <strong>Progression globale</strong>
+          <span id="globalText">0%</span>
+        </div>
+        <div class="progress-wrap">
+          <div id="globalBar" class="progress-bar"></div>
+        </div>
+        <ul id="statusList" class="status-list"></ul>
+      </section>
+
+      <section id="postJobCard" class="card hidden">
+        <h3 style="margin:0 0 10px; font-size:16px;">Traitement termine</h3>
+        <p class="msg" style="margin:0 0 10px;">
+          Les fichiers restent sur le serveur. Ouvrez la page
+          <a href="/exports">Exports</a>
+          pour les parcourir (pas de telechargement automatique).
+        </p>
+        <div id="exportBox" class="export hidden">
+          <h3 style="margin:0 0 8px; font-size:14px;">Dossier serveur (copie/colle)</h3>
+          <div id="exportPath" class="mono"></div>
+          <div class="row">
+            <button id="copyExportPathBtn" class="secondary" type="button">Copier le chemin</button>
+            <a id="openExportsBtn" class="link-btn" href="/exports">Ouvrir Exports</a>
+            <span id="exportMeta" class="msg" style="margin:0;"></span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const filesInput = document.getElementById("filesInput");
+      const folderInput = document.getElementById("folderInput");
+      const dropzone = document.getElementById("dropzone");
+      const pickFilesBtn = document.getElementById("pickFilesBtn");
+      const pickFolderBtn = document.getElementById("pickFolderBtn");
+      const startBtn = document.getElementById("startBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const detectedFilesEl = document.getElementById("detectedFiles");
+      const messageEl = document.getElementById("message");
+      const statusCard = document.getElementById("statusCard");
+      const statusList = document.getElementById("statusList");
+      const globalBar = document.getElementById("globalBar");
+      const globalText = document.getElementById("globalText");
+      const postJobCard = document.getElementById("postJobCard");
+      const exportBox = document.getElementById("exportBox");
+      const exportPathEl = document.getElementById("exportPath");
+      const exportMeta = document.getElementById("exportMeta");
+      const copyExportPathBtn = document.getElementById("copyExportPathBtn");
+
+      let selectedItems = [];
+      let currentJobId = null;
+      let pollTimer = null;
+
+      function setMessage(text, cls = "") {
+        messageEl.className = `msg ${cls}`.trim();
+        messageEl.textContent = text || "";
+      }
+
+      function sanitizeBrowserPath(pathValue) {
+        return (pathValue || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      }
+
+      function isPdf(file) {
+        const name = (file.name || "").toLowerCase();
+        return name.endsWith(".pdf");
+      }
+
+      function addFiles(fileList) {
+        for (const file of fileList) {
+          if (!isPdf(file)) {
+            continue;
+          }
+          const relativePath = sanitizeBrowserPath(file.webkitRelativePath || file.name);
+          if (!relativePath) {
+            continue;
+          }
+          const key = `${relativePath}::${file.size}`;
+          if (selectedItems.some((item) => item.key === key)) {
+            continue;
+          }
+          selectedItems.push({ key, file, relativePath });
+        }
+        refreshDetectedList();
+      }
+
+      async function walkEntry(entry, basePath = "") {
+        if (entry.isFile) {
+          await new Promise((resolve) => {
+            entry.file((file) => {
+              if (isPdf(file)) {
+                const rel = sanitizeBrowserPath(`${basePath}${file.name}`);
+                const key = `${rel}::${file.size}`;
+                if (!selectedItems.some((item) => item.key === key)) {
+                  selectedItems.push({ key, file, relativePath: rel });
+                }
+              }
+              resolve();
+            });
+          });
+        } else if (entry.isDirectory) {
+          const reader = entry.createReader();
+          const entries = await new Promise((resolve) => reader.readEntries(resolve));
+          for (const child of entries) {
+            await walkEntry(child, `${basePath}${entry.name}/`);
+          }
+        }
+      }
+
+      async function handleDropItems(dataTransferItems) {
+        const entries = [];
+        for (const item of dataTransferItems) {
+          if (item.webkitGetAsEntry) {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+              entries.push(entry);
+            }
+          }
+        }
+        if (entries.length === 0) {
+          addFiles(Array.from(dataTransferItems).map((it) => it.getAsFile()).filter(Boolean));
+          return;
+        }
+        for (const entry of entries) {
+          await walkEntry(entry, "");
+        }
+        refreshDetectedList();
+      }
+
+      function refreshDetectedList() {
+        detectedFilesEl.innerHTML = "";
+        if (!selectedItems.length) {
+          startBtn.disabled = true;
+          setMessage("Aucun PDF selectionne.");
+          return;
+        }
+        startBtn.disabled = false;
+        setMessage(`${selectedItems.length} PDF pret(s) a traiter.`);
+        selectedItems
+          .slice()
+          .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+          .forEach((item) => {
+            const li = document.createElement("li");
+            li.innerHTML = `<span class="path">${item.relativePath}</span>`;
+            detectedFilesEl.appendChild(li);
+          });
+      }
+
+      function resetUI() {
+        selectedItems = [];
+        currentJobId = null;
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+        filesInput.value = "";
+        folderInput.value = "";
+        statusCard.classList.add("hidden");
+        postJobCard.classList.add("hidden");
+        resetBtn.classList.add("hidden");
+        statusList.innerHTML = "";
+        exportBox.classList.add("hidden");
+        exportPathEl.textContent = "";
+        exportMeta.textContent = "";
+        globalBar.style.width = "0%";
+        globalText.textContent = "0%";
+        refreshDetectedList();
+      }
+
+      function statusClass(status) {
+        if (status === "done") return "state-ok";
+        if (status === "error") return "state-error";
+        return "state-running";
+      }
+
+      function statusIcon(status) {
+        if (status === "done") return "✓";
+        if (status === "error") return "✗";
+        return "⏳";
+      }
+
+      function folderKey(relativePath) {
+        const parts = relativePath.split("/");
+        if (parts.length <= 1) return "(racine)";
+        return parts.slice(0, -1).join("/");
+      }
+
+      function renderStatus(data) {
+        const global = Number.isFinite(data.global_progress) ? data.global_progress : 0;
+        globalBar.style.width = `${global}%`;
+        globalText.textContent = `${global}% (${data.done}/${data.total})`;
+        statusList.innerHTML = "";
+
+        const groups = new Map();
+        for (const file of data.files) {
+          const key = folderKey(file.relative_path);
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(file);
+        }
+
+        const keys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+        for (const key of keys) {
+          const header = document.createElement("li");
+          header.className = "group-title";
+          header.textContent = `Dossier: ${key}`;
+          statusList.appendChild(header);
+
+          for (const file of groups.get(key)) {
+            const li = document.createElement("li");
+            const cls = statusClass(file.status);
+            const msg = file.error_msg ? ` - ${file.error_msg}` : "";
+            li.innerHTML = `
+            <div class="meta">
+              <span class="${cls}">${statusIcon(file.status)} ${file.status.toUpperCase()}</span>
+              <span>${file.progress}%</span>
+            </div>
+            <div class="path">${file.relative_path}</div>
+            <div class="progress-wrap"><div class="progress-bar" style="width:${file.progress}%"></div></div>
+            <div class="${cls}" style="font-size:12px;">${msg}</div>
+          `;
+            statusList.appendChild(li);
+          }
+        }
+
+        const filesFinished = data.done >= data.total && data.total > 0;
+        const jobStatus = data.job_status || "";
+        const jobClosed = jobStatus === "finished" || jobStatus === "error";
+        const allFinished = filesFinished && jobClosed;
+
+        if (filesFinished && !jobClosed) {
+          setMessage("Finalisation en cours (export vers fichiers_traites)...", "state-running");
+        }
+
+        if (allFinished) {
+          if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+          }
+          const hasErrors = (data.files || []).some((f) => f.status === "error");
+          if (jobStatus === "error" || hasErrors) {
+            setMessage("Traitement termine avec erreurs (voir le rapport dans le dossier export).", "state-error");
+          } else {
+            setMessage("Traitement termine.", "state-ok");
+          }
+          showDownloads(data);
+        }
+      }
+
+      function showDownloads(data) {
+        postJobCard.classList.remove("hidden");
+
+        if (data.export && data.export.path) {
+          exportBox.classList.remove("hidden");
+          exportPathEl.textContent = data.export.path;
+          const report = data.export.has_error_report ? " (rapport d'erreurs inclus)" : "";
+          exportMeta.textContent = `OK: ${data.export.done_files} | Erreurs: ${data.export.error_files}${report}`;
+          exportMeta.className = "msg";
+        } else {
+          exportBox.classList.add("hidden");
+          exportPathEl.textContent = "";
+          exportMeta.textContent = "Export en cours de preparation... Rafraichissez la page Exports dans quelques secondes.";
+        }
+      }
+
+      async function pollStatus() {
+        if (!currentJobId) return;
+        try {
+          const res = await fetch(`/status/${encodeURIComponent(currentJobId)}`);
+          if (!res.ok) {
+            throw new Error("Erreur de recuperation du statut");
+          }
+          const data = await res.json();
+          renderStatus(data);
+        } catch (error) {
+          setMessage(error.message, "state-error");
+        }
+      }
+
+      async function startProcessing() {
+        if (!selectedItems.length) {
+          setMessage("Aucun fichier a traiter.", "state-error");
+          return;
+        }
+        startBtn.disabled = true;
+        setMessage("Envoi en cours...");
+        statusCard.classList.remove("hidden");
+        postJobCard.classList.add("hidden");
+        statusList.innerHTML = "";
+
+        const formData = new FormData();
+        for (const item of selectedItems) {
+          formData.append("files", item.file, item.file.name);
+          formData.append("relative_paths", item.relativePath);
+        }
+
+        try {
+          const res = await fetch("/upload", { method: "POST", body: formData });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || "Echec upload");
+          }
+          currentJobId = data.job_id;
+          setMessage(`Job ${currentJobId} demarre.`, "state-running");
+          resetBtn.classList.remove("hidden");
+          await pollStatus();
+          pollTimer = setInterval(pollStatus, 2000);
+        } catch (error) {
+          setMessage(error.message, "state-error");
+          startBtn.disabled = false;
+        }
+      }
+
+      pickFilesBtn.addEventListener("click", () => filesInput.click());
+      pickFolderBtn.addEventListener("click", () => folderInput.click());
+      startBtn.addEventListener("click", startProcessing);
+      resetBtn.addEventListener("click", resetUI);
+      copyExportPathBtn.addEventListener("click", async () => {
+        const text = exportPathEl.textContent || "";
+        if (!text) return;
+        try {
+          await navigator.clipboard.writeText(text);
+          exportMeta.textContent = "Chemin copie dans le presse-papier.";
+        } catch {
+          exportMeta.textContent = "Impossible de copier automatiquement: selectionnez le chemin manuellement.";
+        }
+      });
+
+      filesInput.addEventListener("change", () => addFiles(filesInput.files));
+      folderInput.addEventListener("change", () => addFiles(folderInput.files));
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          dropzone.classList.add("dragover");
+        });
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropzone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          dropzone.classList.remove("dragover");
+        });
+      });
+
+      dropzone.addEventListener("drop", async (event) => {
+        if (event.dataTransfer?.items?.length) {
+          await handleDropItems(event.dataTransfer.items);
+        } else if (event.dataTransfer?.files?.length) {
+          addFiles(event.dataTransfer.files);
+        }
+      });
+
+      refreshDetectedList();
+    </script>
+  </body>
+  </html>

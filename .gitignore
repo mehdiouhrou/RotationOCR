@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+users.json
+.venv/
+.venv_generate/
+venv/
+jobs.db
+jobs.db-shm
+jobs.db-wal
+uploads/*
+outputs/*
+!uploads/.gitkeep
+!outputs/.gitkeep
+fichiers_traites/*
+!fichiers_traites/.gitkeep

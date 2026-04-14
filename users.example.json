@@ -1,0 +1,10 @@
+[
+  {
+    "username": "equipe_scan",
+    "password": "REMPLACER_PAR_HASH_BCRYPT"
+  },
+  {
+    "username": "admin",
+    "password": "REMPLACER_PAR_HASH_BCRYPT"
+  }
+]

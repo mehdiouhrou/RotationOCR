@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LocaGed OCR - Exports</title>
+    <style>
+      :root {
+        --bg0: #0b1220;
+        --bg1: #0f1b33;
+        --card: rgba(255, 255, 255, 0.92);
+        --text: #0f172a;
+        --muted: #5b6b86;
+        --border: rgba(15, 23, 42, 0.12);
+        --primary: #2563eb;
+        --primary2: #1d4ed8;
+        --ok: #16a34a;
+        --warn: #f59e0b;
+        --error: #dc2626;
+        --shadow: 0 18px 50px rgba(2, 6, 23, 0.35);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        min-height: 100vh;
+        background: radial-gradient(1200px 700px at 20% 0%, rgba(37, 99, 235, 0.35), transparent 55%),
+          radial-gradient(900px 600px at 90% 20%, rgba(16, 185, 129, 0.18), transparent 55%),
+          linear-gradient(180deg, var(--bg0), var(--bg1));
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 22px 18px 40px;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .title {
+        margin: 0;
+        font-size: 22px;
+        color: #ffffff;
+        letter-spacing: -0.02em;
+      }
+      .userbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(10px);
+      }
+      button,
+      .link-btn {
+        border: 0;
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .link-btn {
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+      button.primary {
+        background: linear-gradient(180deg, var(--primary), var(--primary2));
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+      }
+      button.secondary {
+        background: rgba(15, 23, 42, 0.06);
+        color: #0f172a;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 380px 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 980px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        background: var(--card);
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 14px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .list {
+        margin: 10px 0 0;
+        padding: 0;
+        list-style: none;
+        max-height: 62vh;
+        overflow: auto;
+      }
+      .list li {
+        border-top: 1px solid var(--border);
+        padding: 10px 0;
+      }
+      .list button {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .badge {
+        font-size: 12px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.12);
+        color: #1d4ed8;
+        border: 1px solid rgba(37, 99, 235, 0.18);
+      }
+      .badge.warn {
+        background: rgba(245, 158, 11, 0.14);
+        color: #b45309;
+        border-color: rgba(245, 158, 11, 0.22);
+      }
+      .crumbs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .crumb {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .entries {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .entry {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        padding: 10px 12px;
+        border-top: 1px solid var(--border);
+        align-items: center;
+      }
+      .entry:first-child {
+        border-top: 0;
+      }
+      .name {
+        font-size: 14px;
+        word-break: break-word;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        color: rgba(15, 23, 42, 0.72);
+      }
+      .preview {
+        margin-top: 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        background: #ffffff;
+        min-height: 520px;
+      }
+      iframe {
+        width: 100%;
+        height: 62vh;
+        border: 0;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="topbar">
+        <h1 class="title">Exports (serveur)</h1>
+        <div class="userbox">
+          <span class="pill"><span>Connecte</span><strong>{{ username }}</strong></span>
+          <a class="link-btn" href="/">Traiter</a>
+          <a class="link-btn" href="/logout">Deconnexion</a>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="card">
+          <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+            <div>
+              <strong style="font-size:15px;">Lots traites</strong>
+              <div class="muted" style="margin-top:6px;">
+                Chaque ligne correspond a un job termine. Cliquez pour parcourir l'arborescence exportee.
+              </div>
+            </div>
+            <button id="refreshBtn" class="secondary" type="button">Rafraichir</button>
+          </div>
+          <ul id="exportList" class="list"></ul>
+          <div id="emptyState" class="muted hidden" style="margin-top:10px;">Aucun export pour le moment.</div>
+        </section>
+
+        <section class="card">
+          <div id="browseHeader" class="hidden">
+            <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+              <div>
+                <strong id="browseTitle" style="font-size:15px;"></strong>
+                <div id="browseMeta" class="muted" style="margin-top:6px;"></div>
+              </div>
+              <span id="browseBadge" class="badge hidden"></span>
+            </div>
+
+            <div class="crumbs" style="margin-top:10px;">
+              <button id="upBtn" class="secondary" type="button">Dossier parent</button>
+              <span id="crumbs" class="crumb"></span>
+            </div>
+
+            <div id="entries" class="entries"></div>
+
+            <div id="preview" class="preview hidden">
+              <iframe id="previewFrame" title="Preview PDF"></iframe>
+            </div>
+          </div>
+
+          <div id="browseEmpty" class="muted">Selectionnez un lot a gauche.</div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const exportList = document.getElementById("exportList");
+      const emptyState = document.getElementById("emptyState");
+      const refreshBtn = document.getElementById("refreshBtn");
+
+      const browseHeader = document.getElementById("browseHeader");
+      const browseEmpty = document.getElementById("browseEmpty");
+      const browseTitle = document.getElementById("browseTitle");
+      const browseMeta = document.getElementById("browseMeta");
+      const browseBadge = document.getElementById("browseBadge");
+      const crumbs = document.getElementById("crumbs");
+      const upBtn = document.getElementById("upBtn");
+      const entriesEl = document.getElementById("entries");
+      const preview = document.getElementById("preview");
+      const previewFrame = document.getElementById("previewFrame");
+
+      let currentExportFolder = null;
+      let currentPath = "";
+
+      function encodePathForUrl(exportFolder, relativePath) {
+        const prefix = `/exports/file/${encodeURIComponent(exportFolder)}/`;
+        const tail = relativePath
+          .split("/")
+          .filter(Boolean)
+          .map((part) => encodeURIComponent(part))
+          .join("/");
+        return `${prefix}${tail}`;
+      }
+
+      function formatTs(ts) {
+        if (!ts) return "";
+        const d = new Date(ts * 1000);
+        return d.toLocaleString();
+      }
+
+      async function loadExports() {
+        const res = await fetch("/exports/api");
+        if (!res.ok) throw new Error("Impossible de charger les exports");
+        const data = await res.json();
+        renderExports(data.exports || []);
+      }
+
+      function renderExports(exports) {
+        exportList.innerHTML = "";
+        if (!exports.length) {
+          emptyState.classList.remove("hidden");
+          return;
+        }
+        emptyState.classList.add("hidden");
+
+        for (const item of exports) {
+          const li = document.createElement("li");
+          const btn = document.createElement("button");
+          btn.className = "secondary";
+          btn.type = "button";
+
+          const left = document.createElement("div");
+          left.style.textAlign = "left";
+          left.innerHTML = `
+            <div style="font-weight:650; margin-bottom:4px;">${item.folder}</div>
+            <div class="mono">${item.job_id || ""}</div>
+            <div class="muted" style="margin-top:6px;">${formatTs(item.created_at)} · ${item.pdf_count} PDF</div>
+          `;
+
+          const right = document.createElement("div");
+          right.style.display = "flex";
+          right.style.flexDirection = "column";
+          right.style.gap = "8px";
+          right.style.alignItems = "flex-end";
+
+          const badge = document.createElement("span");
+          badge.className = item.has_error_report ? "badge warn" : "badge";
+          badge.textContent = item.has_error_report ? "Erreurs" : "OK";
+
+          right.appendChild(badge);
+          btn.appendChild(left);
+          btn.appendChild(right);
+
+          btn.addEventListener("click", () => openExport(item.folder));
+          li.appendChild(btn);
+          exportList.appendChild(li);
+        }
+      }
+
+      async function openExport(exportFolder) {
+        currentExportFolder = exportFolder;
+        currentPath = "";
+        browseEmpty.classList.add("hidden");
+        browseHeader.classList.remove("hidden");
+        preview.classList.add("hidden");
+        previewFrame.removeAttribute("src");
+
+        browseTitle.textContent = exportFolder;
+        browseMeta.textContent = "Chargement...";
+        browseBadge.classList.add("hidden");
+
+        await browseTo("");
+      }
+
+      function parentPath(path) {
+        const parts = path.split("/").filter(Boolean);
+        parts.pop();
+        return parts.join("/");
+      }
+
+      async function browseTo(path) {
+        if (!currentExportFolder) return;
+        currentPath = path;
+        crumbs.textContent = path ? `/${path}` : "/";
+
+        const qs = path ? `?path=${encodeURIComponent(path)}` : "";
+        const res = await fetch(`/exports/browse/${encodeURIComponent(currentExportFolder)}${qs}`);
+        if (!res.ok) {
+          browseMeta.textContent = "Impossible d'ouvrir ce dossier.";
+          entriesEl.innerHTML = "";
+          return;
+        }
+
+        const data = await res.json();
+        const meta = data.meta || {};
+        browseMeta.innerHTML = `
+          <div><span class="mono">${meta.job_id || ""}</span></div>
+          <div>Utilisateur: <strong>${meta.username || ""}</strong></div>
+          <div class="mono" style="margin-top:6px; word-break:break-all;">${meta.export_path || ""}</div>
+        `;
+
+        browseBadge.classList.remove("hidden");
+        browseBadge.className = data.has_error_report ? "badge warn" : "badge";
+        browseBadge.textContent = data.has_error_report ? "Erreurs partielles" : "OK";
+
+        entriesEl.innerHTML = "";
+        for (const entry of data.entries) {
+          const row = document.createElement("div");
+          row.className = "entry";
+
+          const name = document.createElement("div");
+          name.className = "name";
+          name.textContent = `${entry.is_dir ? "Dossier" : "Fichier"} · ${entry.name}`;
+
+          const actions = document.createElement("div");
+          actions.style.display = "flex";
+          actions.style.gap = "8px";
+          actions.style.flexWrap = "wrap";
+          actions.style.justifyContent = "flex-end";
+
+          if (entry.is_dir) {
+            const openBtn = document.createElement("button");
+            openBtn.className = "secondary";
+            openBtn.type = "button";
+            openBtn.textContent = "Ouvrir";
+            openBtn.addEventListener("click", () => browseTo(entry.rel_path));
+            actions.appendChild(openBtn);
+          } else {
+            const isPdf = entry.name.toLowerCase().endsWith(".pdf");
+            if (isPdf) {
+              const viewBtn = document.createElement("button");
+              viewBtn.className = "primary";
+              viewBtn.type = "button";
+              viewBtn.textContent = "Voir";
+              viewBtn.addEventListener("click", () => {
+                preview.classList.remove("hidden");
+                previewFrame.src = encodePathForUrl(currentExportFolder, entry.rel_path);
+              });
+              actions.appendChild(viewBtn);
+            }
+
+            const dlBtn = document.createElement("button");
+            dlBtn.className = "secondary";
+            dlBtn.type = "button";
+            dlBtn.textContent = "Telecharger";
+            dlBtn.addEventListener("click", () => {
+              window.location.href = `${encodePathForUrl(currentExportFolder, entry.rel_path)}?download=1`;
+            });
+            actions.appendChild(dlBtn);
+          }
+
+          row.appendChild(name);
+          row.appendChild(actions);
+          entriesEl.appendChild(row);
+        }
+      }
+
+      upBtn.addEventListener("click", async () => {
+        if (!currentExportFolder) return;
+        await browseTo(parentPath(currentPath));
+      });
+
+      refreshBtn.addEventListener("click", async () => {
+        try {
+          await loadExports();
+        } catch (e) {
+          alert(e.message || String(e));
+        }
+      });
+
+      loadExports().catch((e) => alert(e.message || String(e)));
+    </script>
+  </body>
+</html>
