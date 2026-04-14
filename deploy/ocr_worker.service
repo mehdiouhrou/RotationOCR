@@ -8,23 +8,8 @@ User=www-data
 Group=www-data
 WorkingDirectory=/opt/ocr_app
 EnvironmentFile=/opt/ocr_app/.env
-ExecStart=/usr/bin/python3 /opt/ocr_app/worker.py
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-[Unit]
-Description=LocaGed OCR Worker
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory=/opt/ocr_app
-EnvironmentFile=/opt/ocr_app/.env
-ExecStart=/usr/bin/python3 /opt/ocr_app/worker.py
+Environment=HOME=/opt/ocr_app/.runtime
+ExecStart=/opt/ocr_app/.venv/bin/python /opt/ocr_app/worker.py
 Restart=always
 RestartSec=5
 

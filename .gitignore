@@ -9,6 +9,8 @@ venv/
 jobs.db
 jobs.db-shm
 jobs.db-wal
+data/*
+!data/.gitkeep
 uploads/*
 outputs/*
 !uploads/.gitkeep

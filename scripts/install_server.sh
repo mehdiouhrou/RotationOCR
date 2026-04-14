@@ -117,7 +117,14 @@ python -m pip install -r "${APP_DIR}/requirements.txt"
 mkdir -p \
   "${APP_DIR}/uploads" \
   "${APP_DIR}/outputs" \
-  "${APP_DIR}/fichiers_traites"
+  "${APP_DIR}/fichiers_traites" \
+  "${APP_DIR}/data" \
+  "${APP_DIR}/.runtime"
+
+# SQLite WAL files live next to jobs.db; keep the DB under data/ so www-data can write without owning the whole repo tree.
+if [[ ! -f "${APP_DIR}/data/jobs.db" ]]; then
+  touch "${APP_DIR}/data/jobs.db"
+fi
 
 if [[ -f "${APP_DIR}/.env.example" && ! -f "${APP_DIR}/.env" ]]; then
   cp "${APP_DIR}/.env.example" "${APP_DIR}/.env"
@@ -132,11 +139,11 @@ fi
 chown -R "${RUN_USER}:${RUN_USER}" \
   "${APP_DIR}/uploads" \
   "${APP_DIR}/outputs" \
-  "${APP_DIR}/fichiers_traites"
+  "${APP_DIR}/fichiers_traites" \
+  "${APP_DIR}/data" \
+  "${APP_DIR}/.runtime"
 
-if [[ -f "${APP_DIR}/jobs.db" ]]; then
-  chown "${RUN_USER}:${RUN_USER}" "${APP_DIR}/jobs.db" || true
-fi
+chown "${RUN_USER}:${RUN_USER}" "${APP_DIR}/data/jobs.db" || true
 
 if [[ -f "${APP_DIR}/.env" ]]; then
   chown "${RUN_USER}:${RUN_USER}" "${APP_DIR}/.env" || true
@@ -170,6 +177,7 @@ User=${RUN_USER}
 Group=${RUN_USER}
 WorkingDirectory=${APP_DIR}
 EnvironmentFile=${APP_DIR}/.env
+Environment=HOME=${APP_DIR}/.runtime
 ExecStart=${GUNICORN_BIN} -w 2 -b 127.0.0.1:5050 app:app
 Restart=always
 RestartSec=5
@@ -189,6 +197,7 @@ User=${RUN_USER}
 Group=${RUN_USER}
 WorkingDirectory=${APP_DIR}
 EnvironmentFile=${APP_DIR}/.env
+Environment=HOME=${APP_DIR}/.runtime
 ExecStart=${PYTHON_WORKER} ${APP_DIR}/worker.py
 Restart=always
 RestartSec=5

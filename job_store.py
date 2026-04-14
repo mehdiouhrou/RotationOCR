@@ -14,11 +14,66 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
+logger = logging.getLogger("ocr_app")
+
 USERS_FILE = BASE_DIR / "users.json"
-DB_FILE = BASE_DIR / "jobs.db"
+DATA_DIR = BASE_DIR / "data"
+DB_FILE = DATA_DIR / "jobs.db"
 UPLOADS_DIR = BASE_DIR / "uploads"
 OUTPUTS_DIR = BASE_DIR / "outputs"
-PROCESSED_DIR = Path(os.environ.get("PROCESSED_DIR", str(BASE_DIR / "fichiers_traites"))).expanduser()
+DEFAULT_PROCESSED_DIR = BASE_DIR / "fichiers_traites"
+
+
+def resolve_processed_dir() -> Path:
+    raw = (os.environ.get("PROCESSED_DIR") or "").strip()
+    if not raw:
+        return DEFAULT_PROCESSED_DIR
+
+    candidate = Path(raw).expanduser()
+    if not candidate.is_absolute():
+        candidate = (BASE_DIR / candidate).resolve()
+
+    parts = candidate.parts
+    if len(parts) >= 2 and parts[1] == "Users":
+        logger.warning(
+            "PROCESSED_DIR points to a macOS path (%s) on a Linux server; falling back to %s",
+            str(candidate),
+            str(DEFAULT_PROCESSED_DIR),
+        )
+        return DEFAULT_PROCESSED_DIR
+
+    try:
+        candidate.relative_to(BASE_DIR.resolve())
+    except ValueError:
+        logger.warning(
+            "PROCESSED_DIR (%s) is outside project base (%s); falling back to %s",
+            str(candidate),
+            str(BASE_DIR.resolve()),
+            str(DEFAULT_PROCESSED_DIR),
+        )
+        return DEFAULT_PROCESSED_DIR
+
+    return candidate
+
+
+PROCESSED_DIR = resolve_processed_dir()
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _migrate_legacy_sqlite_if_needed() -> None:
+    """Older installs used BASE_DIR/jobs.db; WAL sidecars need a writable directory."""
+    legacy_main = BASE_DIR / "jobs.db"
+    if DB_FILE.exists() or not legacy_main.exists():
+        return
+    shutil.move(str(legacy_main), str(DB_FILE))
+    for name in ("jobs.db-wal", "jobs.db-shm"):
+        p = BASE_DIR / name
+        if p.exists():
+            shutil.move(str(p), str(DATA_DIR / name))
+
+
+_migrate_legacy_sqlite_if_needed()
 
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -35,8 +90,6 @@ OCR_MAX_RETRIES = int(os.environ.get("OCR_MAX_RETRIES", "1"))
 UPLOAD_RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("UPLOAD_RATE_LIMIT_WINDOW_SECONDS", "60"))
 UPLOAD_RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("UPLOAD_RATE_LIMIT_MAX_REQUESTS", "10"))
 WORKER_POLL_SECONDS = int(os.environ.get("WORKER_POLL_SECONDS", "2"))
-
-logger = logging.getLogger("ocr_app")
 
 
 def get_db_connection():
