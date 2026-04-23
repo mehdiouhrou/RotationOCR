@@ -297,6 +297,17 @@ def validate_pdf_file(relative_path):
 
 
 def dependency_status():
+    """
+    Vérifie la disponibilité des binaires externes requis par le système.
+    
+    Returns:
+        dict: Statut de chaque dépendance avec clés:
+            - pdftoppm: requis par pdf2image pour convertir PDF en images
+            - tesseract: requis par pytesseract pour détection d'orientation
+            - gs: requis pour la compression PDF avec Ghostscript
+            - sqlite: toujours True (bibliothèque Python)
+            - all_ok: True si toutes les dépendances binaires sont disponibles
+    """
     required_bins = ["pdftoppm", "tesseract", "gs"]
     result = {}
     for binary in required_bins:
@@ -409,3 +420,261 @@ def export_processed_outputs(job_id: str, created_at: float) -> dict:
         "export_copied": copied,
         "export_error_lines": len(errors),
     }
+
+
+def export_processed_outputs_as_zip(job_id: str, created_at: float) -> dict:
+    """
+    Exporte les fichiers traités d'un job dans un fichier ZIP avec conservation de l'arborescence.
+    
+    Args:
+        job_id: Identifiant du job
+        created_at: Timestamp de création du job
+        
+    Returns:
+        dict: Informations sur l'export ZIP avec clés:
+            - export_folder: Nom du dossier d'export
+            - export_path: Chemin absolu du dossier d'export
+            - zip_path: Chemin absolu du fichier ZIP créé
+            - zip_size: Taille du fichier ZIP en octets
+            - export_copied: Nombre de fichiers copiés
+            - export_error_lines: Nombre d'erreurs rencontrées
+    """
+    job = db_get_job(job_id)
+    if not job:
+        raise RuntimeError("Job introuvable")
+
+    folder_name = build_export_folder_name(job_id, created_at)
+    dest_root = PROCESSED_DIR / folder_name
+    dest_root.mkdir(parents=True, exist_ok=True)
+
+    meta = {
+        "job_id": job_id,
+        "username": job.get("username"),
+        "created_at": float(created_at),
+        "export_folder": folder_name,
+        "export_path": str(dest_root.resolve()),
+        "app": "locaged_ocr",
+        "export_type": "zip",
+    }
+    (dest_root / "EXPORT_META.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    copied = 0
+    errors = []
+    
+    # Créer un fichier ZIP temporaire
+    import zipfile
+    zip_filename = f"{folder_name}.zip"
+    zip_path = PROCESSED_DIR / zip_filename
+    
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        # Ajouter les fichiers traités au ZIP
+        for file_entry in job["files"]:
+            relative_path = file_entry["relative_path"]
+            status = file_entry["status"]
+            if status != "done":
+                if status == "error" and file_entry.get("error_msg"):
+                    errors.append(f"{relative_path}: {file_entry['error_msg']}")
+                continue
+
+            src = OUTPUTS_DIR / job_id / relative_path
+            if not src.exists():
+                errors.append(f"{relative_path}: fichier de sortie manquant sur disque")
+                continue
+
+            # Ajouter le fichier au ZIP avec son chemin relatif
+            zipf.write(src, arcname=relative_path)
+            copied += 1
+        
+        # Ajouter le fichier de métadonnées au ZIP
+        meta_file_path = dest_root / "EXPORT_META.json"
+        if meta_file_path.exists():
+            zipf.write(meta_file_path, arcname="EXPORT_META.json")
+        
+        # Ajouter un rapport d'erreurs si nécessaire
+        if errors:
+            report_path = dest_root / "RAPPORT_ERREURS.txt"
+            report_path.write_text("\n".join(errors) + "\n", encoding="utf-8")
+            zipf.write(report_path, arcname="RAPPORT_ERREURS.txt")
+
+    # Nettoyer le dossier temporaire (optionnel)
+    import shutil
+    shutil.rmtree(dest_root, ignore_errors=True)
+    
+    zip_size = zip_path.stat().st_size if zip_path.exists() else 0
+    
+    logger.info(
+        "export.zip job_id=%s zip_path=%s zip_size=%s copied=%s errors=%s",
+        job_id,
+        str(zip_path),
+        zip_size,
+        copied,
+        len(errors),
+    )
+
+    return {
+        "export_folder": folder_name,
+        "export_path": str(dest_root.resolve()),
+        "zip_path": str(zip_path.resolve()),
+        "zip_size": zip_size,
+        "export_copied": copied,
+        "export_error_lines": len(errors),
+    }
+
+
+def delete_exported_job(job_id: str) -> dict:
+    """
+    Supprime manuellement les fichiers exportés d'un job (dossier et ZIP).
+    
+    Args:
+        job_id: Identifiant du job à supprimer
+        
+    Returns:
+        dict: Résultat de la suppression avec clés:
+            - success: True si la suppression a réussi
+            - deleted_folders: Liste des dossiers supprimés
+            - deleted_zips: Liste des fichiers ZIP supprimés
+            - error: Message d'erreur en cas d'échec
+    """
+    try:
+        deleted_folders = []
+        deleted_zips = []
+        
+        # Chercher tous les dossiers d'export correspondant à ce job_id
+        if PROCESSED_DIR.exists():
+            for item in PROCESSED_DIR.iterdir():
+                if item.is_dir() and job_id in item.name:
+                    try:
+                        shutil.rmtree(item)
+                        deleted_folders.append(str(item))
+                        logger.info(f"Suppression dossier export: {item}")
+                    except Exception as e:
+                        logger.warning(f"Erreur suppression dossier {item}: {e}")
+                
+                # Chercher aussi les fichiers ZIP correspondants
+                if item.is_file() and item.suffix == '.zip' and job_id in item.name:
+                    try:
+                        item.unlink()
+                        deleted_zips.append(str(item))
+                        logger.info(f"Suppression ZIP export: {item}")
+                    except Exception as e:
+                        logger.warning(f"Erreur suppression ZIP {item}: {e}")
+        
+        # Supprimer aussi les fichiers dans uploads/ et outputs/
+        uploads_job_dir = UPLOADS_DIR / job_id
+        outputs_job_dir = OUTPUTS_DIR / job_id
+        
+        for job_dir in [uploads_job_dir, outputs_job_dir]:
+            if job_dir.exists():
+                try:
+                    shutil.rmtree(job_dir)
+                    logger.info(f"Suppression répertoire job: {job_dir}")
+                except Exception as e:
+                    logger.warning(f"Erreur suppression répertoire {job_dir}: {e}")
+        
+        # Supprimer l'entrée de la base de données
+        db_delete_job(job_id)
+        logger.info(f"Suppression entrée base de données pour job: {job_id}")
+        
+        return {
+            "success": True,
+            "deleted_folders": deleted_folders,
+            "deleted_zips": deleted_zips,
+            "error": None
+        }
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la suppression du job {job_id}: {e}")
+        return {
+            "success": False,
+            "deleted_folders": [],
+            "deleted_zips": [],
+            "error": str(e)
+        }
+
+
+def cleanup_expired_jobs() -> dict:
+    """
+    Nettoie automatiquement les jobs expirés selon le délai configuré (JOB_TTL_SECONDS).
+    
+    Returns:
+        dict: Résultat du nettoyage avec clés:
+            - cleaned_jobs: Liste des job_ids nettoyés
+            - cleaned_folders: Nombre de dossiers supprimés
+            - cleaned_zips: Nombre de fichiers ZIP supprimés
+            - errors: Liste des erreurs rencontrées
+    """
+    try:
+        now = time.time()
+        expiration_before = now - JOB_TTL_SECONDS
+        
+        # Récupérer les jobs expirés
+        expired_job_ids = db_list_expired_job_ids(expiration_before)
+        
+        cleaned_jobs = []
+        cleaned_folders = 0
+        cleaned_zips = 0
+        errors = []
+        
+        for job_id in expired_job_ids:
+            try:
+                # Supprimer les fichiers exportés
+                result = delete_exported_job(job_id)
+                if result["success"]:
+                    cleaned_jobs.append(job_id)
+                    cleaned_folders += len(result["deleted_folders"])
+                    cleaned_zips += len(result["deleted_zips"])
+                else:
+                    errors.append(f"Job {job_id}: {result['error']}")
+            except Exception as e:
+                errors.append(f"Job {job_id}: {str(e)}")
+        
+        logger.info(
+            "cleanup.expired cleaned_jobs=%s cleaned_folders=%s cleaned_zips=%s errors=%s",
+            len(cleaned_jobs),
+            cleaned_folders,
+            cleaned_zips,
+            len(errors),
+        )
+        
+        return {
+            "cleaned_jobs": cleaned_jobs,
+            "cleaned_folders": cleaned_folders,
+            "cleaned_zips": cleaned_zips,
+            "errors": errors
+        }
+        
+    except Exception as e:
+        logger.error(f"Erreur lors du nettoyage automatique: {e}")
+        return {
+            "cleaned_jobs": [],
+            "cleaned_folders": 0,
+            "cleaned_zips": 0,
+            "errors": [str(e)]
+        }
+
+
+def schedule_automatic_cleanup():
+    """
+    Planifie le nettoyage automatique périodique des jobs expirés.
+    À exécuter dans un thread séparé ou via un scheduler externe.
+    """
+    import threading
+    import time as time_module
+    
+    def cleanup_loop():
+        while True:
+            try:
+                result = cleanup_expired_jobs()
+                if result["cleaned_jobs"]:
+                    logger.info(f"Nettoyage automatique effectué: {len(result['cleaned_jobs'])} jobs nettoyés")
+            except Exception as e:
+                logger.error(f"Erreur dans la boucle de nettoyage: {e}")
+            
+            # Attendre l'intervalle configuré
+            time_module.sleep(CLEANUP_INTERVAL_SECONDS)
+    
+    # Démarrer le thread de nettoyage
+    cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
+    cleanup_thread.start()
+    logger.info(f"Nettoyage automatique démarré (intervalle: {CLEANUP_INTERVAL_SECONDS}s)")
+    return cleanup_thread

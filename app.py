@@ -39,7 +39,7 @@ from job_store import (
 )
 
 logging.basicConfig(level="INFO", format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger("ocr_web")
+logger = logging.getLogger("rotation_web")
 
 SAFE_EXPORT_FOLDER_RE = re.compile(r"^[0-9]{8}_[0-9]{6}_[0-9a-fA-F-]{8,}$")
 
@@ -520,7 +520,7 @@ def download_all(job_id):
     if zip_file is None or not zip_file.exists():
         abort(404)
 
-    return send_file(zip_file, as_attachment=True, download_name=f"ocr_{job_id}.zip")
+    return send_file(zip_file, as_attachment=True, download_name=f"rotation_{job_id}.zip")
 
 
 if __name__ == "__main__":

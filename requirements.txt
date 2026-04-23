@@ -2,3 +2,7 @@ flask
 bcrypt
 gunicorn
 python-dotenv
+PyMuPDF
+pdf2image
+Pillow
+pytesseract

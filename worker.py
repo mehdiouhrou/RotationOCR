@@ -6,9 +6,7 @@ from pathlib import Path
 
 from job_store import (
     MAX_WORKERS,
-    OCR_TIMEOUT_SECONDS,
     OUTPUTS_DIR,
-    TESSERACT_LANGS,
     UPLOADS_DIR,
     WORKER_POLL_SECONDS,
     db_claim_next_job,
@@ -18,12 +16,12 @@ from job_store import (
     db_update_file,
     export_processed_outputs,
     init_db,
-    list_sorted_files,
-    run_command,
 )
 
+from rotation_service import process_pdf_rotation
+
 logging.basicConfig(level="INFO", format="%(asctime)s %(levelname)s %(message)s")
-logger = logging.getLogger("ocr_worker")
+logger = logging.getLogger("rotation_worker")
 
 
 def process_single_pdf(job_id, file_entry):
@@ -32,70 +30,49 @@ def process_single_pdf(job_id, file_entry):
     output_pdf_path = OUTPUTS_DIR / job_id / relative_path
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
-    temp_base_dir = UPLOADS_DIR / job_id / "_tmp" / relative_path.replace("/", "_")
-    temp_base_dir.mkdir(parents=True, exist_ok=True)
-    pages_prefix = temp_base_dir / "page"
-
-    db_update_file(job_id, relative_path, status="processing", progress=5, error_msg="")
-    logger.info("ocr.file.start job_id=%s file=%s", job_id, relative_path)
+    db_update_file(job_id, relative_path, status="processing", progress=10, error_msg="")
+    logger.info("rotation.file.start job_id=%s file=%s", job_id, relative_path)
 
     try:
-        run_command(
-            ["pdftoppm", "-r", "300", str(input_pdf_path), str(pages_prefix)],
-            timeout_seconds=OCR_TIMEOUT_SECONDS,
+        # Traitement de rotation avec notre nouveau service
+        output_path, rotation_angle, success = process_pdf_rotation(
+            str(input_pdf_path),
+            str(output_pdf_path.parent)
         )
-        db_update_file(job_id, relative_path, progress=20)
-
-        ppm_files = list_sorted_files(temp_base_dir, ".ppm")
-        if not ppm_files:
-            raise RuntimeError("Aucune image PPM generee par pdftoppm")
-
-        page_pdfs = []
-        total_pages = len(ppm_files)
-        for page_i, ppm_path in enumerate(ppm_files, start=1):
-            output_prefix = str(Path(ppm_path).with_suffix(""))
-            run_command(
-                [
-                    "tesseract",
-                    ppm_path,
-                    output_prefix,
-                    "-l",
-                    TESSERACT_LANGS,
-                    "--psm",
-                    "1",
-                    "pdf",
-                ],
-                timeout_seconds=OCR_TIMEOUT_SECONDS,
+        
+        if success and output_path:
+            # Mettre à jour la progression
+            db_update_file(job_id, relative_path, progress=100)
+            
+            # Mettre à jour le statut avec l'angle de rotation détecté
+            status_msg = f"Rotation corrigée ({rotation_angle}°)" if rotation_angle != 0 else "Aucune rotation nécessaire"
+            db_update_file(
+                job_id, 
+                relative_path, 
+                status="done", 
+                progress=100, 
+                error_msg=status_msg
             )
-            page_pdf = f"{output_prefix}.pdf"
-            if not Path(page_pdf).exists():
-                raise RuntimeError(f"Page OCR manquante: {page_pdf}")
-            page_pdfs.append(page_pdf)
-            page_progress = 20 + int((page_i / total_pages) * 60)
-            db_update_file(job_id, relative_path, progress=page_progress)
-
-        run_command(
-            [
-                "gs",
-                "-dBATCH",
-                "-dNOPAUSE",
-                "-sDEVICE=pdfwrite",
-                "-dPDFSETTINGS=/ebook",
-                f"-sOutputFile={output_pdf_path}",
-                *page_pdfs,
-            ],
-            timeout_seconds=OCR_TIMEOUT_SECONDS,
-        )
-
-        db_update_file(job_id, relative_path, status="done", progress=100, error_msg="")
-        logger.info("ocr.file.done job_id=%s file=%s", job_id, relative_path)
+            logger.info("rotation.file.done job_id=%s file=%s angle=%s", 
+                       job_id, relative_path, rotation_angle)
+        else:
+            # En cas d'échec, copier le fichier original comme fallback
+            shutil.copy2(str(input_pdf_path), str(output_pdf_path))
+            db_update_file(
+                job_id, 
+                relative_path, 
+                status="done", 
+                progress=100, 
+                error_msg="Rotation échouée, fichier original copié"
+            )
+            logger.warning("rotation.file.fallback job_id=%s file=%s", job_id, relative_path)
+            
     except Exception as err:  # noqa: BLE001
         err_msg = str(err)[:500]
         db_update_file(job_id, relative_path, status="error", progress=100, error_msg=err_msg)
-        logger.error("ocr.file.error job_id=%s file=%s error=%s", job_id, relative_path, err_msg)
+        logger.error("rotation.file.error job_id=%s file=%s error=%s", job_id, relative_path, err_msg)
     finally:
         db_increment_done(job_id)
-        shutil.rmtree(temp_base_dir, ignore_errors=True)
 
 
 def process_job(job_id):
@@ -103,7 +80,7 @@ def process_job(job_id):
     if not job:
         return
 
-    logger.info("ocr.job.start job_id=%s total=%s", job_id, job["total"])
+    logger.info("rotation.job.start job_id=%s total=%s", job_id, job["total"])
     files = job["files"]
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = [executor.submit(process_single_pdf, job_id, file_entry) for file_entry in files]
@@ -116,12 +93,12 @@ def process_job(job_id):
 
     export_info = export_processed_outputs(job_id, float(final_job["created_at"]))
     logger.info(
-        "ocr.job.export job_id=%s folder=%s copied=%s",
+        "rotation.job.export job_id=%s folder=%s copied=%s",
         job_id,
         export_info.get("export_folder"),
         export_info.get("export_copied"),
     )
-    logger.info("ocr.job.finished job_id=%s status=%s", job_id, "error" if has_error else "finished")
+    logger.info("rotation.job.finished job_id=%s status=%s", job_id, "error" if has_error else "finished")
 
 
 def main():
