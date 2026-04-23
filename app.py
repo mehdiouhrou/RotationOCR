@@ -1,4 +1,5 @@
 import atexit
+import io
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import shutil
 import threading
 import time
 import uuid
+import zipfile
 from functools import wraps
 from pathlib import Path
 from typing import Optional
@@ -502,6 +504,172 @@ def download_file(job_id, relative_path):
         file_path,
         as_attachment=True,
         download_name=Path(safe_rel_path).name,
+    )
+
+
+def generate_zip_from_directory(source_dir: Path, zip_buffer: io.BytesIO, arcname_prefix: str = ""):
+    """Génère un ZIP en mémoire à partir d'un répertoire source."""
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(source_dir):
+            for file in files:
+                file_path = Path(root) / file
+                # Calculer le chemin relatif par rapport au répertoire source
+                rel_path = file_path.relative_to(source_dir)
+                # Construire le chemin dans le ZIP avec le préfixe
+                arcname = str(Path(arcname_prefix) / rel_path) if arcname_prefix else str(rel_path)
+                zipf.write(file_path, arcname)
+
+
+@app.route("/exports/download/<job_id>", methods=["GET"])
+@login_required
+def download_export_zip(job_id):
+    """Télécharger un lot en ZIP (un ZIP par sous-dossier racine si plusieurs)."""
+    # Vérifier que le job existe et appartient à l'utilisateur
+    job = db_get_job(job_id)
+    if not job:
+        abort(404)
+    if job.get("username") != session.get("username"):
+        abort(403)
+    
+    # Trouver le dossier d'export correspondant
+    export_name = build_export_folder_name(job_id, float(job["created_at"]))
+    export_dir = PROCESSED_DIR / export_name
+    
+    if not export_dir.exists() or not export_dir.is_dir():
+        abort(404)
+    
+    # Vérifier les sous-dossiers racine
+    root_items = list(export_dir.iterdir())
+    root_dirs = [item for item in root_items if item.is_dir()]
+    
+    # Si un seul dossier racine -> un seul ZIP
+    if len(root_dirs) == 1:
+        zip_buffer = io.BytesIO()
+        generate_zip_from_directory(root_dirs[0], zip_buffer, arcname_prefix=root_dirs[0].name)
+        zip_buffer.seek(0)
+        return send_file(
+            zip_buffer,
+            as_attachment=True,
+            download_name=f"{export_name}.zip",
+            mimetype='application/zip'
+        )
+    # Si plusieurs dossiers racine -> un ZIP par sous-dossier
+    elif len(root_dirs) > 1:
+        # Créer un ZIP contenant tous les sous-dossiers
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root_dir in root_dirs:
+                for root, dirs, files in os.walk(root_dir):
+                    for file in files:
+                        file_path = Path(root) / file
+                        rel_path = file_path.relative_to(root_dir)
+                        arcname = f"{root_dir.name}/{rel_path}"
+                        zipf.write(file_path, arcname)
+        zip_buffer.seek(0)
+        return send_file(
+            zip_buffer,
+            as_attachment=True,
+            download_name=f"{export_name}.zip",
+            mimetype='application/zip'
+        )
+    # Si aucun dossier (que des fichiers) -> un seul ZIP avec les fichiers à la racine
+    else:
+        zip_buffer = io.BytesIO()
+        generate_zip_from_directory(export_dir, zip_buffer)
+        zip_buffer.seek(0)
+        return send_file(
+            zip_buffer,
+            as_attachment=True,
+            download_name=f"{export_name}.zip",
+            mimetype='application/zip'
+        )
+
+
+@app.route("/exports/download-selection", methods=["POST"])
+@login_required
+def download_selection_zip():
+    """Télécharger une sélection de lots en un seul ZIP."""
+    data = request.get_json()
+    if not data or "job_ids" not in data:
+        return jsonify({"error": "Donnees JSON invalides"}), 400
+    
+    job_ids = data["job_ids"]
+    if not isinstance(job_ids, list):
+        return jsonify({"error": "job_ids doit etre une liste"}), 400
+    
+    username = session.get("username")
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for job_id in job_ids:
+            # Vérifier que le job existe et appartient à l'utilisateur
+            job = db_get_job(job_id)
+            if not job:
+                continue
+            if job.get("username") != username:
+                continue
+            
+            # Trouver le dossier d'export
+            export_name = build_export_folder_name(job_id, float(job["created_at"]))
+            export_dir = PROCESSED_DIR / export_name
+            
+            if not export_dir.exists() or not export_dir.is_dir():
+                continue
+            
+            # Ajouter tous les fichiers du dossier d'export au ZIP
+            for root, dirs, files in os.walk(export_dir):
+                for file in files:
+                    file_path = Path(root) / file
+                    rel_path = file_path.relative_to(export_dir)
+                    arcname = f"{export_name}/{rel_path}"
+                    zipf.write(file_path, arcname)
+    
+    if zip_buffer.tell() == 0:  # ZIP vide
+        return jsonify({"error": "Aucun lot valide trouve"}), 404
+    
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        as_attachment=True,
+        download_name="export_selection.zip",
+        mimetype='application/zip'
+    )
+
+
+@app.route("/exports/download-all", methods=["GET"])
+@login_required
+def download_all_exports_zip():
+    """Télécharger TOUS les lots de l'utilisateur en un seul ZIP."""
+    username = session.get("username")
+    exports = list_user_exports(username)
+    
+    if not exports:
+        return jsonify({"error": "Aucun export trouve"}), 404
+    
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for export in exports:
+            export_dir = Path(export["path"])
+            export_name = export["folder"]
+            
+            if not export_dir.exists() or not export_dir.is_dir():
+                continue
+            
+            # Ajouter tous les fichiers du dossier d'export au ZIP
+            for root, dirs, files in os.walk(export_dir):
+                for file in files:
+                    file_path = Path(root) / file
+                    rel_path = file_path.relative_to(export_dir)
+                    arcname = f"{export_name}/{rel_path}"
+                    zipf.write(file_path, arcname)
+    
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        as_attachment=True,
+        download_name="all_exports.zip",
+        mimetype='application/zip'
     )
 
 

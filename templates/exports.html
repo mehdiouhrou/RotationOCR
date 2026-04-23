@@ -93,6 +93,11 @@
         background: rgba(15, 23, 42, 0.06);
         color: #0f172a;
       }
+      button.danger {
+        background: linear-gradient(180deg, var(--error), #b91c1c);
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(220, 38, 38, 0.25);
+      }
       .grid {
         display: grid;
         grid-template-columns: 380px 1fr;
@@ -196,6 +201,105 @@
       .hidden {
         display: none;
       }
+      
+      /* Nouveaux styles pour la sélection */
+      .selection-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .selection-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .selection-count {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--primary);
+      }
+      .selection-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .export-card {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        transition: all 0.2s ease;
+      }
+      .export-card:hover {
+        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+      .export-card.selected {
+        border-color: var(--primary);
+        background: rgba(37, 99, 235, 0.05);
+      }
+      .export-checkbox {
+        margin-top: 4px;
+      }
+      .export-content {
+        flex: 1;
+      }
+      .export-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+      }
+      .export-title {
+        font-weight: 650;
+        font-size: 15px;
+        color: var(--text);
+      }
+      .export-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 8px;
+      }
+      .export-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .export-actions button {
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+      .floating-download {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        gap: 10px;
+      }
+      .floating-download button {
+        padding: 12px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+      }
+      .download-all-top {
+        margin-bottom: 14px;
+      }
+      .download-all-top button {
+        width: 100%;
+        justify-content: center;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+      }
     </style>
   </head>
   <body>
@@ -203,25 +307,48 @@
       <header class="topbar">
         <h1 class="title">Correction Rotation - Exports</h1>
         <div class="userbox">
-          <span class="pill"><span>Connecte</span><strong>{{ username }}</strong></span>
-          <a class="link-btn" href="/">Traiter</a>
-          <a class="link-btn" href="/logout">Deconnexion</a>
+          <span class="pill"><span>Connecté</span><strong>{{ username }}</strong></span>
+          <a class="link-btn" href="/">Traitement</a>
+          <a class="link-btn" href="/exports">Exports</a>
+          <a class="link-btn" href="/logout">Déconnexion</a>
         </div>
       </header>
+
+      <!-- Bouton Télécharger TOUT en haut -->
+      <div class="download-all-top">
+        <button id="downloadAllBtn" class="primary" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Télécharger TOUS les lots (ZIP unique)
+        </button>
+      </div>
 
       <div class="grid">
         <section class="card">
           <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
             <div>
-              <strong style="font-size:15px;">Lots traites</strong>
+              <strong style="font-size:15px;">Lots traités</strong>
               <div class="muted" style="margin-top:6px;">
-                Chaque ligne correspond a un job termine. Cliquez pour parcourir l'arborescence exportee.
+                Sélectionnez un ou plusieurs lots pour les télécharger.
               </div>
             </div>
-            <button id="refreshBtn" class="secondary" type="button">Rafraichir</button>
+            <button id="refreshBtn" class="secondary" type="button">Rafraîchir</button>
           </div>
-          <ul id="exportList" class="list"></ul>
-          <div id="emptyState" class="muted hidden" style="margin-top:10px;">Aucun export pour le moment.</div>
+
+          <!-- Contrôles de sélection -->
+          <div id="selectionControls" class="selection-controls hidden">
+            <div class="selection-info">
+              <span class="selection-count" id="selectedCount">0 sélectionné(s)</span>
+              <button id="selectAllBtn" class="secondary" type="button">Tout sélectionner</button>
+              <button id="deselectAllBtn" class="secondary" type="button">Tout désélectionner</button>
+            </div>
+          </div>
+
+          <div id="exportsContainer"></div>
+          <div id="emptyState" class="muted" style="margin-top:10px; text-align:center;">Aucun export pour le moment.</div>
         </section>
 
         <section class="card">
@@ -246,15 +373,35 @@
             </div>
           </div>
 
-          <div id="browseEmpty" class="muted">Selectionnez un lot a gauche.</div>
+          <div id="browseEmpty" class="muted">Sélectionnez un lot à gauche pour parcourir son contenu.</div>
         </section>
       </div>
     </div>
 
+    <!-- Bouton flottant pour télécharger la sélection -->
+    <div id="floatingDownload" class="floating-download hidden">
+      <button id="downloadSelectionBtn" class="primary" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Télécharger la sélection (<span id="floatingCount">0</span>)
+      </button>
+    </div>
+
     <script>
-      const exportList = document.getElementById("exportList");
+      const exportsContainer = document.getElementById("exportsContainer");
       const emptyState = document.getElementById("emptyState");
       const refreshBtn = document.getElementById("refreshBtn");
+      const selectionControls = document.getElementById("selectionControls");
+      const selectedCount = document.getElementById("selectedCount");
+      const selectAllBtn = document.getElementById("selectAllBtn");
+      const deselectAllBtn = document.getElementById("deselectAllBtn");
+      const downloadAllBtn = document.getElementById("downloadAllBtn");
+      const floatingDownload = document.getElementById("floatingDownload");
+      const downloadSelectionBtn = document.getElementById("downloadSelectionBtn");
+      const floatingCount = document.getElementById("floatingCount");
 
       const browseHeader = document.getElementById("browseHeader");
       const browseEmpty = document.getElementById("browseEmpty");
@@ -269,6 +416,8 @@
 
       let currentExportFolder = null;
       let currentPath = "";
+      let exportsData = [];
+      let selectedExports = new Set();
 
       function encodePathForUrl(exportFolder, relativePath) {
         const prefix = `/exports/file/${encodeURIComponent(exportFolder)}/`;
@@ -286,52 +435,221 @@
         return d.toLocaleString();
       }
 
+      function formatDate(ts) {
+        if (!ts) return "";
+        const d = new Date(ts * 1000);
+        return d.toLocaleDateString();
+      }
+
       async function loadExports() {
         const res = await fetch("/exports/api");
         if (!res.ok) throw new Error("Impossible de charger les exports");
         const data = await res.json();
-        renderExports(data.exports || []);
+        exportsData = data.exports || [];
+        renderExports();
       }
 
-      function renderExports(exports) {
-        exportList.innerHTML = "";
-        if (!exports.length) {
+      function updateSelectionUI() {
+        const count = selectedExports.size;
+        selectedCount.textContent = `${count} sélectionné(s)`;
+        floatingCount.textContent = count;
+        
+        if (count > 0) {
+          selectionControls.classList.remove("hidden");
+          floatingDownload.classList.remove("hidden");
+        } else {
+          selectionControls.classList.add("hidden");
+          floatingDownload.classList.add("hidden");
+        }
+        
+        // Mettre à jour l'état des boutons de sélection
+        selectAllBtn.disabled = exportsData.length === 0 || selectedExports.size === exportsData.length;
+        deselectAllBtn.disabled = selectedExports.size === 0;
+      }
+
+      function toggleExportSelection(jobId) {
+        if (selectedExports.has(jobId)) {
+          selectedExports.delete(jobId);
+        } else {
+          selectedExports.add(jobId);
+        }
+        updateSelectionUI();
+        renderExports(); // Re-render pour mettre à jour les styles des cartes
+      }
+
+      function selectAllExports() {
+        selectedExports.clear();
+        exportsData.forEach(exp => {
+          if (exp.job_id) {
+            selectedExports.add(exp.job_id);
+          }
+        });
+        updateSelectionUI();
+        renderExports();
+      }
+
+      function deselectAllExports() {
+        selectedExports.clear();
+        updateSelectionUI();
+        renderExports();
+      }
+
+      function renderExports() {
+        exportsContainer.innerHTML = "";
+        if (!exportsData.length) {
           emptyState.classList.remove("hidden");
+          selectionControls.classList.add("hidden");
           return;
         }
         emptyState.classList.add("hidden");
 
-        for (const item of exports) {
-          const li = document.createElement("li");
-          const btn = document.createElement("button");
-          btn.className = "secondary";
-          btn.type = "button";
+        exportsData.forEach(item => {
+          const card = document.createElement("div");
+          card.className = "export-card";
+          if (item.job_id && selectedExports.has(item.job_id)) {
+            card.classList.add("selected");
+          }
 
-          const left = document.createElement("div");
-          left.style.textAlign = "left";
-          left.innerHTML = `
-            <div style="font-weight:650; margin-bottom:4px;">${item.folder}</div>
-            <div class="mono">${item.job_id || ""}</div>
-            <div class="muted" style="margin-top:6px;">${formatTs(item.created_at)} · ${item.pdf_count} PDF</div>
-          `;
+          // Checkbox
+          const checkboxDiv = document.createElement("div");
+          checkboxDiv.className = "export-checkbox";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = item.job_id && selectedExports.has(item.job_id);
+          checkbox.addEventListener("change", () => toggleExportSelection(item.job_id));
+          checkboxDiv.appendChild(checkbox);
+          card.appendChild(checkboxDiv);
 
-          const right = document.createElement("div");
-          right.style.display = "flex";
-          right.style.flexDirection = "column";
-          right.style.gap = "8px";
-          right.style.alignItems = "flex-end";
-
+          // Contenu
+          const contentDiv = document.createElement("div");
+          contentDiv.className = "export-content";
+          
+          // En-tête avec titre et badge
+          const headerDiv = document.createElement("div");
+          headerDiv.className = "export-header";
+          
+          const titleDiv = document.createElement("div");
+          titleDiv.className = "export-title";
+          titleDiv.textContent = item.folder;
+          
           const badge = document.createElement("span");
           badge.className = item.has_error_report ? "badge warn" : "badge";
           badge.textContent = item.has_error_report ? "Erreurs" : "OK";
+          
+          headerDiv.appendChild(titleDiv);
+          headerDiv.appendChild(badge);
+          contentDiv.appendChild(headerDiv);
 
-          right.appendChild(badge);
-          btn.appendChild(left);
-          btn.appendChild(right);
+          // Métadonnées
+          const metaDiv = document.createElement("div");
+          metaDiv.className = "export-meta";
+          metaDiv.innerHTML = `
+            <div class="mono">${item.job_id || ""}</div>
+            <div class="muted">Date: ${formatDate(item.created_at)}</div>
+            <div class="muted">Fichiers PDF: ${item.pdf_count}</div>
+          `;
+          contentDiv.appendChild(metaDiv);
 
-          btn.addEventListener("click", () => openExport(item.folder));
-          li.appendChild(btn);
-          exportList.appendChild(li);
+          // Actions
+          const actionsDiv = document.createElement("div");
+          actionsDiv.className = "export-actions";
+          
+          const browseBtn = document.createElement("button");
+          browseBtn.className = "secondary";
+          browseBtn.type = "button";
+          browseBtn.textContent = "Parcourir";
+          browseBtn.addEventListener("click", () => openExport(item.folder));
+          
+          const downloadBtn = document.createElement("button");
+          downloadBtn.className = "primary";
+          downloadBtn.type = "button";
+          downloadBtn.textContent = "Télécharger ce lot";
+          downloadBtn.addEventListener("click", () => downloadSingleExport(item.job_id));
+          
+          actionsDiv.appendChild(browseBtn);
+          actionsDiv.appendChild(downloadBtn);
+          contentDiv.appendChild(actionsDiv);
+
+          card.appendChild(contentDiv);
+          exportsContainer.appendChild(card);
+        });
+
+        updateSelectionUI();
+      }
+
+      async function downloadSingleExport(jobId) {
+        if (!jobId) return;
+        
+        try {
+          const response = await fetch(`/exports/download/${jobId}`);
+          if (!response.ok) {
+            throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+          }
+          
+          // Créer un blob et déclencher le téléchargement
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `export_${jobId}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } catch (error) {
+          alert(`Erreur lors du téléchargement: ${error.message}`);
+        }
+      }
+
+      async function downloadSelection() {
+        if (selectedExports.size === 0) return;
+        
+        try {
+          const jobIds = Array.from(selectedExports);
+          const response = await fetch('/exports/download-selection', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ job_ids: jobIds })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'export_selection.zip';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } catch (error) {
+          alert(`Erreur lors du téléchargement de la sélection: ${error.message}`);
+        }
+      }
+
+      async function downloadAllExports() {
+        try {
+          const response = await fetch('/exports/download-all');
+          if (!response.ok) {
+            throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+          }
+          
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'all_exports.zip';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } catch (error) {
+          alert(`Erreur lors du téléchargement de tous les exports: ${error.message}`);
         }
       }
 
@@ -420,7 +738,7 @@
             const dlBtn = document.createElement("button");
             dlBtn.className = "secondary";
             dlBtn.type = "button";
-            dlBtn.textContent = "Telecharger";
+            dlBtn.textContent = "Télécharger";
             dlBtn.addEventListener("click", () => {
               window.location.href = `${encodePathForUrl(currentExportFolder, entry.rel_path)}?download=1`;
             });
@@ -433,6 +751,7 @@
         }
       }
 
+      // Événements
       upBtn.addEventListener("click", async () => {
         if (!currentExportFolder) return;
         await browseTo(parentPath(currentPath));
@@ -446,6 +765,12 @@
         }
       });
 
+      selectAllBtn.addEventListener("click", selectAllExports);
+      deselectAllBtn.addEventListener("click", deselectAllExports);
+      downloadSelectionBtn.addEventListener("click", downloadSelection);
+      downloadAllBtn.addEventListener("click", downloadAllExports);
+
+      // Chargement initial
       loadExports().catch((e) => alert(e.message || String(e)));
     </script>
   </body>
