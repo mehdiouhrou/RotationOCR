@@ -5,8 +5,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-import fitz  # PyMuPDF
-
 import ai_titler
 from job_store import (
     MAX_WORKERS,
@@ -28,17 +26,6 @@ logging.basicConfig(level="INFO", format="%(asctime)s %(levelname)s %(message)s"
 logger = logging.getLogger("rotation_worker")
 
 
-def _extract_ocr_text(pdf_path: str) -> str:
-    try:
-        doc = fitz.open(pdf_path)
-        text = "".join(page.get_text() for page in doc)
-        doc.close()
-        return text
-    except Exception as exc:
-        logger.warning("ocr_text.extract_failed path=%s error=%s", pdf_path, exc)
-        return ""
-
-
 def process_single_pdf(job_id, file_entry):
     relative_path = file_entry["relative_path"]
     original_filename = file_entry["original_name"]
@@ -50,7 +37,7 @@ def process_single_pdf(job_id, file_entry):
     logger.info("rotation.file.start job_id=%s file=%s", job_id, relative_path)
 
     try:
-        output_path, rotation_angle, success = process_pdf_rotation(
+        output_path, rotation_angle, success, ocr_text = process_pdf_rotation(
             str(input_pdf_path),
             str(output_pdf_path.parent),
         )
@@ -58,8 +45,7 @@ def process_single_pdf(job_id, file_entry):
         if success and output_path:
             db_update_file(job_id, relative_path, progress=90)
 
-            # Extraction du texte OCR puis renommage IA
-            ocr_text = _extract_ocr_text(output_path)
+            # ocr_text extrait par rotation_service AVANT Ghostscript
             ai_result = ai_titler.extract_title(ocr_text, original_filename)
 
             new_path = Path(output_path).parent / ai_result["nom_fichier"]
