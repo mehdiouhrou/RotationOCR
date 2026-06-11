@@ -3,775 +3,453 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correction Rotation - Exports</title>
+    <title>RotationOCR — Historique</title>
     <style>
-      :root {
-        --bg0: #0b1220;
-        --bg1: #0f1b33;
-        --card: rgba(255, 255, 255, 0.92);
-        --text: #0f172a;
-        --muted: #5b6b86;
-        --border: rgba(15, 23, 42, 0.12);
-        --primary: #2563eb;
-        --primary2: #1d4ed8;
-        --ok: #16a34a;
-        --warn: #f59e0b;
-        --error: #dc2626;
-        --shadow: 0 18px 50px rgba(2, 6, 23, 0.35);
-      }
-      * {
-        box-sizing: border-box;
-      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
       body {
-        margin: 0;
-        color: var(--text);
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        background: #f5f6fa;
+        color: #1a1a2e;
         min-height: 100vh;
-        background: radial-gradient(1200px 700px at 20% 0%, rgba(37, 99, 235, 0.35), transparent 55%),
-          radial-gradient(900px 600px at 90% 20%, rgba(16, 185, 129, 0.18), transparent 55%),
-          linear-gradient(180deg, var(--bg0), var(--bg1));
-      }
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 22px 18px 40px;
-      }
-      .topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 14px;
-      }
-      .title {
-        margin: 0;
-        font-size: 22px;
-        color: #ffffff;
-        letter-spacing: -0.02em;
-      }
-      .userbox {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 10px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        color: rgba(255, 255, 255, 0.92);
-        backdrop-filter: blur(10px);
-      }
-      button,
-      .link-btn {
-        border: 0;
-        border-radius: 10px;
-        padding: 9px 12px;
-        font-size: 14px;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .link-btn {
-        background: rgba(255, 255, 255, 0.14);
-        color: #ffffff;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-      }
-      button.primary {
-        background: linear-gradient(180deg, var(--primary), var(--primary2));
-        color: #fff;
-        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
-      }
-      button.secondary {
-        background: rgba(15, 23, 42, 0.06);
-        color: #0f172a;
-      }
-      button.danger {
-        background: linear-gradient(180deg, var(--error), #b91c1c);
-        color: #fff;
-        box-shadow: 0 10px 24px rgba(220, 38, 38, 0.25);
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: 380px 1fr;
-        gap: 14px;
-      }
-      @media (max-width: 980px) {
-        .grid {
-          grid-template-columns: 1fr;
-        }
-      }
-      .card {
-        background: var(--card);
-        border-radius: 14px;
-        border: 1px solid var(--border);
-        padding: 14px;
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(10px);
-      }
-      .muted {
-        color: var(--muted);
-        font-size: 13px;
-        line-height: 1.35;
-      }
-      .list {
-        margin: 10px 0 0;
-        padding: 0;
-        list-style: none;
-        max-height: 62vh;
-        overflow: auto;
-      }
-      .list li {
-        border-top: 1px solid var(--border);
-        padding: 10px 0;
-      }
-      .list button {
-        width: 100%;
-        justify-content: space-between;
-      }
-      .badge {
-        font-size: 12px;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: rgba(37, 99, 235, 0.12);
-        color: #1d4ed8;
-        border: 1px solid rgba(37, 99, 235, 0.18);
-      }
-      .badge.warn {
-        background: rgba(245, 158, 11, 0.14);
-        color: #b45309;
-        border-color: rgba(245, 158, 11, 0.22);
-      }
-      .crumbs {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      .crumb {
-        font-size: 13px;
-        color: var(--muted);
-      }
-      .entries {
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        overflow: hidden;
-      }
-      .entry {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        padding: 10px 12px;
-        border-top: 1px solid var(--border);
-        align-items: center;
-      }
-      .entry:first-child {
-        border-top: 0;
-      }
-      .name {
-        font-size: 14px;
-        word-break: break-word;
-      }
-      .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        font-size: 12px;
-        color: rgba(15, 23, 42, 0.72);
-      }
-      .preview {
-        margin-top: 12px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        overflow: hidden;
-        background: #ffffff;
-        min-height: 520px;
-      }
-      iframe {
-        width: 100%;
-        height: 62vh;
-        border: 0;
-      }
-      .hidden {
-        display: none;
-      }
-      
-      /* Nouveaux styles pour la sélection */
-      .selection-controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--border);
-      }
-      .selection-info {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .selection-count {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--primary);
-      }
-      .selection-actions {
-        display: flex;
-        gap: 8px;
-      }
-      .export-card {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        margin-bottom: 10px;
-        background: rgba(255, 255, 255, 0.8);
-        transition: all 0.2s ease;
-      }
-      .export-card:hover {
-        background: rgba(255, 255, 255, 0.95);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-      }
-      .export-card.selected {
-        border-color: var(--primary);
-        background: rgba(37, 99, 235, 0.05);
-      }
-      .export-checkbox {
-        margin-top: 4px;
-      }
-      .export-content {
-        flex: 1;
-      }
-      .export-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 8px;
-      }
-      .export-title {
-        font-weight: 650;
-        font-size: 15px;
-        color: var(--text);
-      }
-      .export-meta {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        margin-bottom: 8px;
       }
-      .export-actions {
+
+      /* ── Header ── */
+      header {
+        background: #1a1a2e;
+        color: #fff;
+        padding: 0 28px;
+        height: 56px;
         display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-shrink: 0;
+      }
+      .brand {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .brand span { color: #4f8ef7; }
+      .header-nav {
+        display: flex;
+        align-items: center;
         gap: 8px;
-        margin-top: 8px;
       }
-      .export-actions button {
-        padding: 6px 10px;
-        font-size: 13px;
+      .nav-link {
+        color: rgba(255,255,255,0.82);
+        text-decoration: none;
+        font-size: 14px;
+        padding: 7px 12px;
+        border-radius: 8px;
+        transition: background 0.15s;
+        white-space: nowrap;
       }
-      .floating-download {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
+      .nav-link:hover { background: rgba(255,255,255,0.10); }
+      .btn-logout {
+        background: rgba(255,255,255,0.10);
+        border: 1px solid rgba(255,255,255,0.18);
+        color: #fff;
+        font-size: 14px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s;
+      }
+      .btn-logout:hover { background: rgba(255,255,255,0.18); }
+
+      /* ── Main ── */
+      main {
+        flex: 1;
+        padding: 40px 24px 64px;
+        max-width: 900px;
+        margin: 0 auto;
+        width: 100%;
+      }
+      .page-title {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 24px;
+        color: #1a1a2e;
+      }
+
+      /* ── Spinner ── */
+      .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 80px;
+        color: #9ca3af;
+        font-size: 15px;
+        gap: 12px;
+      }
+      .spinner {
+        width: 20px; height: 20px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #4f8ef7;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* ── Empty state ── */
+      .empty-state {
+        text-align: center;
+        padding: 80px 24px;
+        display: none;
+      }
+      .empty-state.visible { display: block; }
+      .empty-icon { font-size: 48px; margin-bottom: 16px; }
+      .empty-text { font-size: 16px; color: #6b7280; margin-bottom: 20px; }
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        background: #16213e;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s;
+      }
+      .btn-primary:hover { background: #0f3460; }
+
+      /* ── Cards liste ── */
+      .cards-list {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        display: none;
+      }
+      .cards-list.visible { display: flex; }
+
+      /* ── Card lot ── */
+      .lot-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1.5px solid #e5e7eb;
+        padding: 20px 24px;
+        box-shadow: 0 2px 10px rgba(26,26,46,0.06);
+        transition: box-shadow 0.15s;
+      }
+      .lot-card:hover { box-shadow: 0 4px 18px rgba(26,26,46,0.10); }
+      .lot-card.deleted {
+        opacity: 0.52;
+        background: #f9fafb;
+        pointer-events: none;
+      }
+      /* réactiver les éléments visuels mais pas les boutons */
+      .lot-card.deleted .lot-header,
+      .lot-card.deleted .lot-counts,
+      .lot-card.deleted .lot-status { pointer-events: none; }
+
+      .lot-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .lot-date {
+        font-size: 16px;
+        font-weight: 700;
+        color: #1a1a2e;
+      }
+
+      /* Badge statut */
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 20px;
+        white-space: nowrap;
+      }
+      .status-badge.available { background: #dcfce7; color: #15803d; }
+      .status-badge.countdown { background: #fef3c7; color: #b45309; }
+      .status-badge.deleted   { background: #f3f4f6; color: #6b7280; }
+
+      .lot-counts {
+        font-size: 14px;
+        color: #374151;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .count-sep { color: #d1d5db; }
+      .count-ok   { color: #16a34a; font-weight: 600; }
+      .count-warn { color: #d97706; font-weight: 600; }
+      .count-err  { font-size: 12px; color: #ef4444; }
+
+      .lot-actions {
         display: flex;
         gap: 10px;
+        flex-wrap: wrap;
       }
-      .floating-download button {
-        padding: 12px 16px;
-        font-size: 14px;
+      .btn-results {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 16px;
+        border-radius: 9px;
+        border: 1.5px solid #e5e7eb;
+        background: #fff;
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        text-decoration: none;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .btn-results:hover { border-color: #a5b4fc; background: #f5f3ff; }
+      .btn-results:disabled,
+      .btn-results[disabled] {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+      .btn-zip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 16px;
+        border-radius: 9px;
+        background: #16213e;
+        color: #fff;
+        border: none;
+        font-size: 13px;
         font-weight: 600;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s;
+        box-shadow: 0 2px 8px rgba(22,33,62,0.18);
       }
-      .download-all-top {
-        margin-bottom: 14px;
-      }
-      .download-all-top button {
-        width: 100%;
-        justify-content: center;
-        padding: 10px 16px;
-        font-size: 14px;
-        font-weight: 600;
+      .btn-zip:hover { background: #0f3460; }
+      .btn-zip:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <header class="topbar">
-        <h1 class="title">Correction Rotation - Exports</h1>
-        <div class="userbox">
-          <span class="pill"><span>Connecté</span><strong>{{ username }}</strong></span>
-          <a class="link-btn" href="/">Traitement</a>
-          <a class="link-btn" href="/exports">Exports</a>
-          <a class="link-btn" href="/logout">Déconnexion</a>
-        </div>
-      </header>
+    <header>
+      <div class="brand">Rotation<span>OCR</span></div>
+      <nav class="header-nav">
+        <a class="nav-link" href="/">← Nouvelle upload</a>
+        <a class="btn-logout" href="/logout">Déconnexion</a>
+      </nav>
+    </header>
 
-      <!-- Bouton Télécharger TOUT en haut -->
-      <div class="download-all-top">
-        <button id="downloadAllBtn" class="primary" type="button">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          Télécharger TOUS les lots (ZIP unique)
-        </button>
+    <main>
+      <h1 class="page-title">Historique des lots traités</h1>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        Chargement…
       </div>
 
-      <div class="grid">
-        <section class="card">
-          <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
-            <div>
-              <strong style="font-size:15px;">Lots traités</strong>
-              <div class="muted" style="margin-top:6px;">
-                Sélectionnez un ou plusieurs lots pour les télécharger.
-              </div>
-            </div>
-            <button id="refreshBtn" class="secondary" type="button">Rafraîchir</button>
-          </div>
-
-          <!-- Contrôles de sélection -->
-          <div id="selectionControls" class="selection-controls hidden">
-            <div class="selection-info">
-              <span class="selection-count" id="selectedCount">0 sélectionné(s)</span>
-              <button id="selectAllBtn" class="secondary" type="button">Tout sélectionner</button>
-              <button id="deselectAllBtn" class="secondary" type="button">Tout désélectionner</button>
-            </div>
-          </div>
-
-          <div id="exportsContainer"></div>
-          <div id="emptyState" class="muted" style="margin-top:10px; text-align:center;">Aucun export pour le moment.</div>
-        </section>
-
-        <section class="card">
-          <div id="browseHeader" class="hidden">
-            <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
-              <div>
-                <strong id="browseTitle" style="font-size:15px;"></strong>
-                <div id="browseMeta" class="muted" style="margin-top:6px;"></div>
-              </div>
-              <span id="browseBadge" class="badge hidden"></span>
-            </div>
-
-            <div class="crumbs" style="margin-top:10px;">
-              <button id="upBtn" class="secondary" type="button">Dossier parent</button>
-              <span id="crumbs" class="crumb"></span>
-            </div>
-
-            <div id="entries" class="entries"></div>
-
-            <div id="preview" class="preview hidden">
-              <iframe id="previewFrame" title="Preview PDF"></iframe>
-            </div>
-          </div>
-
-          <div id="browseEmpty" class="muted">Sélectionnez un lot à gauche pour parcourir son contenu.</div>
-        </section>
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">📭</div>
+        <div class="empty-text">Aucun lot traité pour l'instant.</div>
+        <a class="btn-primary" href="/">🚀 Lancer un traitement</a>
       </div>
-    </div>
 
-    <!-- Bouton flottant pour télécharger la sélection -->
-    <div id="floatingDownload" class="floating-download hidden">
-      <button id="downloadSelectionBtn" class="primary" type="button">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        Télécharger la sélection (<span id="floatingCount">0</span>)
-      </button>
-    </div>
+      <div class="cards-list" id="cardsList"></div>
+    </main>
 
     <script>
-      const exportsContainer = document.getElementById("exportsContainer");
-      const emptyState = document.getElementById("emptyState");
-      const refreshBtn = document.getElementById("refreshBtn");
-      const selectionControls = document.getElementById("selectionControls");
-      const selectedCount = document.getElementById("selectedCount");
-      const selectAllBtn = document.getElementById("selectAllBtn");
-      const deselectAllBtn = document.getElementById("deselectAllBtn");
-      const downloadAllBtn = document.getElementById("downloadAllBtn");
-      const floatingDownload = document.getElementById("floatingDownload");
-      const downloadSelectionBtn = document.getElementById("downloadSelectionBtn");
-      const floatingCount = document.getElementById("floatingCount");
+      const DOWNLOAD_TTL = 3600; // secondes, doit correspondre à job_store.DOWNLOAD_TTL_SECONDS
 
-      const browseHeader = document.getElementById("browseHeader");
-      const browseEmpty = document.getElementById("browseEmpty");
-      const browseTitle = document.getElementById("browseTitle");
-      const browseMeta = document.getElementById("browseMeta");
-      const browseBadge = document.getElementById("browseBadge");
-      const crumbs = document.getElementById("crumbs");
-      const upBtn = document.getElementById("upBtn");
-      const entriesEl = document.getElementById("entries");
-      const preview = document.getElementById("preview");
-      const previewFrame = document.getElementById("previewFrame");
+      const loadingEl   = document.getElementById("loading");
+      const emptyState  = document.getElementById("emptyState");
+      const cardsList   = document.getElementById("cardsList");
 
-      let currentExportFolder = null;
-      let currentPath = "";
-      let exportsData = [];
-      let selectedExports = new Set();
-
-      function encodePathForUrl(exportFolder, relativePath) {
-        const prefix = `/exports/file/${encodeURIComponent(exportFolder)}/`;
-        const tail = relativePath
-          .split("/")
-          .filter(Boolean)
-          .map((part) => encodeURIComponent(part))
-          .join("/");
-        return `${prefix}${tail}`;
-      }
-
-      function formatTs(ts) {
-        if (!ts) return "";
-        const d = new Date(ts * 1000);
-        return d.toLocaleString();
-      }
-
-      function formatDate(ts) {
-        if (!ts) return "";
-        const d = new Date(ts * 1000);
-        return d.toLocaleDateString();
-      }
-
-      async function loadExports() {
-        const res = await fetch("/exports/api");
-        if (!res.ok) throw new Error("Impossible de charger les exports");
-        const data = await res.json();
-        exportsData = data.exports || [];
-        renderExports();
-      }
-
-      function updateSelectionUI() {
-        const count = selectedExports.size;
-        selectedCount.textContent = `${count} sélectionné(s)`;
-        floatingCount.textContent = count;
-        
-        if (count > 0) {
-          selectionControls.classList.remove("hidden");
-          floatingDownload.classList.remove("hidden");
-        } else {
-          selectionControls.classList.add("hidden");
-          floatingDownload.classList.add("hidden");
-        }
-        
-        // Mettre à jour l'état des boutons de sélection
-        selectAllBtn.disabled = exportsData.length === 0 || selectedExports.size === exportsData.length;
-        deselectAllBtn.disabled = selectedExports.size === 0;
-      }
-
-      function toggleExportSelection(jobId) {
-        if (selectedExports.has(jobId)) {
-          selectedExports.delete(jobId);
-        } else {
-          selectedExports.add(jobId);
-        }
-        updateSelectionUI();
-        renderExports(); // Re-render pour mettre à jour les styles des cartes
-      }
-
-      function selectAllExports() {
-        selectedExports.clear();
-        exportsData.forEach(exp => {
-          if (exp.job_id) {
-            selectedExports.add(exp.job_id);
-          }
+      // ── Utilitaires ──
+      function fmtDate(ts) {
+        return new Date(ts * 1000).toLocaleString("fr-FR", {
+          day: "2-digit", month: "long", year: "numeric",
+          hour: "2-digit", minute: "2-digit"
         });
-        updateSelectionUI();
-        renderExports();
       }
 
-      function deselectAllExports() {
-        selectedExports.clear();
-        updateSelectionUI();
-        renderExports();
+      function computeStatus(exp) {
+        if (!exp.job_exists) return { type: "deleted", label: "🗑 Supprimé" };
+        if (exp.downloaded_at == null) return { type: "available", label: "✅ Disponible" };
+        const deleteAt  = exp.downloaded_at + DOWNLOAD_TTL;
+        const remaining = deleteAt - (Date.now() / 1000);
+        if (remaining <= 0) return { type: "deleted", label: "🗑 Supprimé" };
+        return { type: "countdown", deleteAt, label: countdownLabel(remaining) };
       }
 
-      function renderExports() {
-        exportsContainer.innerHTML = "";
-        if (!exportsData.length) {
-          emptyState.classList.remove("hidden");
-          selectionControls.classList.add("hidden");
-          return;
+      function countdownLabel(remaining) {
+        const mins = Math.ceil(remaining / 60);
+        if (mins >= 60) {
+          const hrs = Math.floor(mins / 60);
+          const m   = mins % 60;
+          return `⏱ Suppression dans ${hrs}h${m > 0 ? m + "min" : ""}`;
         }
-        emptyState.classList.add("hidden");
-
-        exportsData.forEach(item => {
-          const card = document.createElement("div");
-          card.className = "export-card";
-          if (item.job_id && selectedExports.has(item.job_id)) {
-            card.classList.add("selected");
-          }
-
-          // Checkbox
-          const checkboxDiv = document.createElement("div");
-          checkboxDiv.className = "export-checkbox";
-          const checkbox = document.createElement("input");
-          checkbox.type = "checkbox";
-          checkbox.checked = item.job_id && selectedExports.has(item.job_id);
-          checkbox.addEventListener("change", () => toggleExportSelection(item.job_id));
-          checkboxDiv.appendChild(checkbox);
-          card.appendChild(checkboxDiv);
-
-          // Contenu
-          const contentDiv = document.createElement("div");
-          contentDiv.className = "export-content";
-          
-          // En-tête avec titre et badge
-          const headerDiv = document.createElement("div");
-          headerDiv.className = "export-header";
-          
-          const titleDiv = document.createElement("div");
-          titleDiv.className = "export-title";
-          titleDiv.textContent = item.folder;
-          
-          const badge = document.createElement("span");
-          badge.className = item.has_error_report ? "badge warn" : "badge";
-          badge.textContent = item.has_error_report ? "Erreurs" : "OK";
-          
-          headerDiv.appendChild(titleDiv);
-          headerDiv.appendChild(badge);
-          contentDiv.appendChild(headerDiv);
-
-          // Métadonnées
-          const metaDiv = document.createElement("div");
-          metaDiv.className = "export-meta";
-          metaDiv.innerHTML = `
-            <div class="mono">${item.job_id || ""}</div>
-            <div class="muted">Date: ${formatDate(item.created_at)}</div>
-            <div class="muted">Fichiers PDF: ${item.pdf_count}</div>
-          `;
-          contentDiv.appendChild(metaDiv);
-
-          // Actions
-          const actionsDiv = document.createElement("div");
-          actionsDiv.className = "export-actions";
-          
-          const browseBtn = document.createElement("button");
-          browseBtn.className = "secondary";
-          browseBtn.type = "button";
-          browseBtn.textContent = "Parcourir";
-          browseBtn.addEventListener("click", () => openExport(item.folder));
-          
-          const downloadBtn = document.createElement("button");
-          downloadBtn.className = "primary";
-          downloadBtn.type = "button";
-          downloadBtn.textContent = "Télécharger ce lot";
-          downloadBtn.addEventListener("click", () => downloadSingleExport(item.job_id));
-          
-          actionsDiv.appendChild(browseBtn);
-          actionsDiv.appendChild(downloadBtn);
-          contentDiv.appendChild(actionsDiv);
-
-          card.appendChild(contentDiv);
-          exportsContainer.appendChild(card);
-        });
-
-        updateSelectionUI();
+        return `⏱ Suppression dans ${mins} min`;
       }
 
-      async function downloadSingleExport(jobId) {
-        if (!jobId) return;
-        
-        try {
-          const response = await fetch(`/exports/download/${jobId}`);
-          if (!response.ok) {
-            throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-          }
-          
-          // Créer un blob et déclencher le téléchargement
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `export_${jobId}.zip`;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        } catch (error) {
-          alert(`Erreur lors du téléchargement: ${error.message}`);
+      function esc(s) {
+        return String(s)
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+          .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+      }
+
+      // ── Rendu d'une card ──
+      function renderCard(exp) {
+        const status = computeStatus(exp);
+        const isDeleted = status.type === "deleted";
+
+        const card = document.createElement("div");
+        card.className = "lot-card" + (isDeleted ? " deleted" : "");
+        card.dataset.jobId = exp.job_id || "";
+
+        // Compteurs
+        const total     = exp.pdf_count || 0;
+        const okCnt     = exp.ok_count   || 0;
+        const warnCnt   = exp.warn_count  || 0;
+        const untagged  = total - okCnt - warnCnt;
+
+        let countsHtml = `<span>${total} fichier${total > 1 ? "s" : ""}</span>`;
+        if (okCnt > 0 || warnCnt > 0) {
+          countsHtml += `<span class="count-sep">•</span>`;
+          if (okCnt > 0)   countsHtml += `<span class="count-ok">✅ ${okCnt} OK</span>`;
+          if (warnCnt > 0) countsHtml += `<span class="count-warn">⚠️ ${warnCnt} à vérifier</span>`;
         }
-      }
-
-      async function downloadSelection() {
-        if (selectedExports.size === 0) return;
-        
-        try {
-          const jobIds = Array.from(selectedExports);
-          const response = await fetch('/exports/download-selection', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ job_ids: jobIds })
-          });
-          
-          if (!response.ok) {
-            throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-          }
-          
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'export_selection.zip';
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        } catch (error) {
-          alert(`Erreur lors du téléchargement de la sélection: ${error.message}`);
-        }
-      }
-
-      async function downloadAllExports() {
-        try {
-          const response = await fetch('/exports/download-all');
-          if (!response.ok) {
-            throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-          }
-          
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'all_exports.zip';
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
-        } catch (error) {
-          alert(`Erreur lors du téléchargement de tous les exports: ${error.message}`);
-        }
-      }
-
-      async function openExport(exportFolder) {
-        currentExportFolder = exportFolder;
-        currentPath = "";
-        browseEmpty.classList.add("hidden");
-        browseHeader.classList.remove("hidden");
-        preview.classList.add("hidden");
-        previewFrame.removeAttribute("src");
-
-        browseTitle.textContent = exportFolder;
-        browseMeta.textContent = "Chargement...";
-        browseBadge.classList.add("hidden");
-
-        await browseTo("");
-      }
-
-      function parentPath(path) {
-        const parts = path.split("/").filter(Boolean);
-        parts.pop();
-        return parts.join("/");
-      }
-
-      async function browseTo(path) {
-        if (!currentExportFolder) return;
-        currentPath = path;
-        crumbs.textContent = path ? `/${path}` : "/";
-
-        const qs = path ? `?path=${encodeURIComponent(path)}` : "";
-        const res = await fetch(`/exports/browse/${encodeURIComponent(currentExportFolder)}${qs}`);
-        if (!res.ok) {
-          browseMeta.textContent = "Impossible d'ouvrir ce dossier.";
-          entriesEl.innerHTML = "";
-          return;
+        if (exp.has_error_report) {
+          countsHtml += `<span class="count-err">⚠ rapport d'erreurs</span>`;
         }
 
-        const data = await res.json();
-        const meta = data.meta || {};
-        browseMeta.innerHTML = `
-          <div><span class="mono">${meta.job_id || ""}</span></div>
-          <div>Utilisateur: <strong>${meta.username || ""}</strong></div>
-          <div class="mono" style="margin-top:6px; word-break:break-all;">${meta.export_path || ""}</div>
+        // Badge statut
+        const badgeCls = status.type === "available" ? "available"
+                       : status.type === "countdown"  ? "countdown"
+                       : "deleted";
+
+        const badgeHtml = `<span class="status-badge ${badgeCls}" ${
+          status.type === "countdown" ? `data-delete-at="${status.deleteAt}"` : ""
+        }>${esc(status.label)}</span>`;
+
+        // Boutons
+        const canResults = !isDeleted && exp.job_id;
+        const canZip     = !isDeleted && exp.job_id;
+
+        const resultsHtml = `<a
+          class="btn-results"
+          href="${canResults ? `/results/${encodeURIComponent(exp.job_id)}` : "#"}"
+          ${canResults ? "" : 'disabled aria-disabled="true"'}
+        >🔍 Voir les résultats</a>`;
+
+        const zipHtml = `<button
+          class="btn-zip"
+          type="button"
+          data-job-id="${esc(exp.job_id || "")}"
+          ${canZip ? "" : "disabled"}
+        >⬇️ Télécharger ZIP</button>`;
+
+        card.innerHTML = `
+          <div class="lot-header">
+            <div class="lot-date">📁 Lot du ${esc(fmtDate(exp.created_at))}</div>
+            ${badgeHtml}
+          </div>
+          <div class="lot-counts">${countsHtml}</div>
+          <div class="lot-actions">
+            ${resultsHtml}
+            ${zipHtml}
+          </div>
         `;
 
-        browseBadge.classList.remove("hidden");
-        browseBadge.className = data.has_error_report ? "badge warn" : "badge";
-        browseBadge.textContent = data.has_error_report ? "Erreurs partielles" : "OK";
+        // Listener bouton ZIP
+        const zipBtn = card.querySelector(".btn-zip");
+        if (zipBtn && canZip) {
+          zipBtn.addEventListener("click", () => downloadLot(exp, card));
+        }
 
-        entriesEl.innerHTML = "";
-        for (const entry of data.entries) {
-          const row = document.createElement("div");
-          row.className = "entry";
+        return card;
+      }
 
-          const name = document.createElement("div");
-          name.className = "name";
-          name.textContent = `${entry.is_dir ? "Dossier" : "Fichier"} · ${entry.name}`;
+      // ── Télécharger un lot ──
+      async function downloadLot(exp, card) {
+        try {
+          await fetch(`/mark_downloaded/${encodeURIComponent(exp.job_id)}`, { method: "POST" });
+        } catch (e) { /* non bloquant */ }
 
-          const actions = document.createElement("div");
-          actions.style.display = "flex";
-          actions.style.gap = "8px";
-          actions.style.flexWrap = "wrap";
-          actions.style.justifyContent = "flex-end";
+        // Mettre à jour le badge localement
+        const now      = Date.now() / 1000;
+        const deleteAt = now + DOWNLOAD_TTL;
+        exp.downloaded_at = now;
+        const badge = card.querySelector(".status-badge");
+        if (badge) {
+          badge.className = "status-badge countdown";
+          badge.dataset.deleteAt = String(deleteAt);
+          badge.textContent = countdownLabel(DOWNLOAD_TTL);
+        }
 
-          if (entry.is_dir) {
-            const openBtn = document.createElement("button");
-            openBtn.className = "secondary";
-            openBtn.type = "button";
-            openBtn.textContent = "Ouvrir";
-            openBtn.addEventListener("click", () => browseTo(entry.rel_path));
-            actions.appendChild(openBtn);
-          } else {
-            const isPdf = entry.name.toLowerCase().endsWith(".pdf");
-            if (isPdf) {
-              const viewBtn = document.createElement("button");
-              viewBtn.className = "primary";
-              viewBtn.type = "button";
-              viewBtn.textContent = "Voir";
-              viewBtn.addEventListener("click", () => {
-                preview.classList.remove("hidden");
-                previewFrame.src = encodePathForUrl(currentExportFolder, entry.rel_path);
-              });
-              actions.appendChild(viewBtn);
-            }
+        window.location.href = `/download_all/${encodeURIComponent(exp.job_id)}`;
+      }
 
-            const dlBtn = document.createElement("button");
-            dlBtn.className = "secondary";
-            dlBtn.type = "button";
-            dlBtn.textContent = "Télécharger";
-            dlBtn.addEventListener("click", () => {
-              window.location.href = `${encodePathForUrl(currentExportFolder, entry.rel_path)}?download=1`;
-            });
-            actions.appendChild(dlBtn);
+      // ── Chargement ──
+      async function loadExports() {
+        try {
+          const res  = await fetch("/exports/api");
+          if (!res.ok) throw new Error("Erreur chargement");
+          const data = await res.json();
+          const exports = data.exports || [];
+
+          loadingEl.style.display = "none";
+
+          if (!exports.length) {
+            emptyState.classList.add("visible");
+            return;
           }
 
-          row.appendChild(name);
-          row.appendChild(actions);
-          entriesEl.appendChild(row);
+          cardsList.classList.add("visible");
+          exports.forEach(exp => cardsList.appendChild(renderCard(exp)));
+
+          startCountdowns();
+        } catch (err) {
+          loadingEl.innerHTML = `<span style="color:#ef4444">Erreur : ${err.message}</span>`;
         }
       }
 
-      // Événements
-      upBtn.addEventListener("click", async () => {
-        if (!currentExportFolder) return;
-        await browseTo(parentPath(currentPath));
-      });
+      // ── Mise à jour des countdowns ──
+      function startCountdowns() {
+        setInterval(() => {
+          const badges = document.querySelectorAll(".status-badge.countdown[data-delete-at]");
+          badges.forEach(badge => {
+            const deleteAt  = parseFloat(badge.dataset.deleteAt);
+            const remaining = deleteAt - (Date.now() / 1000);
+            if (remaining <= 0) {
+              badge.className    = "status-badge deleted";
+              badge.textContent  = "🗑 Supprimé";
+              const card = badge.closest(".lot-card");
+              if (card) {
+                card.classList.add("deleted");
+                card.querySelectorAll(".btn-results, .btn-zip").forEach(b => b.setAttribute("disabled", ""));
+              }
+            } else {
+              badge.textContent = countdownLabel(remaining);
+            }
+          });
+        }, 30000); // toutes les 30 secondes
+      }
 
-      refreshBtn.addEventListener("click", async () => {
-        try {
-          await loadExports();
-        } catch (e) {
-          alert(e.message || String(e));
-        }
-      });
-
-      selectAllBtn.addEventListener("click", selectAllExports);
-      deselectAllBtn.addEventListener("click", deselectAllExports);
-      downloadSelectionBtn.addEventListener("click", downloadSelection);
-      downloadAllBtn.addEventListener("click", downloadAllExports);
-
-      // Chargement initial
-      loadExports().catch((e) => alert(e.message || String(e)));
+      loadExports();
     </script>
   </body>
 </html>

@@ -1,9 +1,13 @@
 import logging
+import os
 import shutil
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+import fitz  # PyMuPDF
+
+import ai_titler
 from job_store import (
     MAX_WORKERS,
     OUTPUTS_DIR,
@@ -14,18 +18,30 @@ from job_store import (
     db_increment_done,
     db_set_job_status,
     db_update_file,
+    db_update_file_ai,
     export_processed_outputs,
     init_db,
 )
-
 from rotation_service import process_pdf_rotation
 
 logging.basicConfig(level="INFO", format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("rotation_worker")
 
 
+def _extract_ocr_text(pdf_path: str) -> str:
+    try:
+        doc = fitz.open(pdf_path)
+        text = "".join(page.get_text() for page in doc)
+        doc.close()
+        return text
+    except Exception as exc:
+        logger.warning("ocr_text.extract_failed path=%s error=%s", pdf_path, exc)
+        return ""
+
+
 def process_single_pdf(job_id, file_entry):
     relative_path = file_entry["relative_path"]
+    original_filename = file_entry["original_name"]
     input_pdf_path = UPLOADS_DIR / job_id / relative_path
     output_pdf_path = OUTPUTS_DIR / job_id / relative_path
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
@@ -34,39 +50,76 @@ def process_single_pdf(job_id, file_entry):
     logger.info("rotation.file.start job_id=%s file=%s", job_id, relative_path)
 
     try:
-        # Traitement de rotation avec notre nouveau service
         output_path, rotation_angle, success = process_pdf_rotation(
             str(input_pdf_path),
-            str(output_pdf_path.parent)
+            str(output_pdf_path.parent),
         )
-        
+
         if success and output_path:
-            # Mettre à jour la progression
-            db_update_file(job_id, relative_path, progress=100)
-            
-            # Mettre à jour le statut avec l'angle de rotation détecté
-            status_msg = f"Rotation corrigée ({rotation_angle}°)" if rotation_angle != 0 else "Aucune rotation nécessaire"
-            db_update_file(
-                job_id, 
-                relative_path, 
-                status="done", 
-                progress=100, 
-                error_msg=status_msg
+            db_update_file(job_id, relative_path, progress=90)
+
+            # Extraction du texte OCR puis renommage IA
+            ocr_text = _extract_ocr_text(output_path)
+            ai_result = ai_titler.extract_title(ocr_text, original_filename)
+
+            new_path = Path(output_path).parent / ai_result["nom_fichier"]
+            try:
+                os.rename(output_path, new_path)
+                logger.info(
+                    "ai_titler.renamed job_id=%s file=%s new_name=%s confiance=%s statut=%s",
+                    job_id,
+                    relative_path,
+                    ai_result["nom_fichier"],
+                    ai_result["confiance"],
+                    ai_result["statut"],
+                )
+            except Exception as rename_err:
+                logger.warning(
+                    "ai_titler.rename_failed job_id=%s file=%s error=%s",
+                    job_id,
+                    relative_path,
+                    rename_err,
+                )
+                ai_result["nom_fichier"] = Path(output_path).name
+
+            db_update_file_ai(
+                job_id,
+                relative_path,
+                titre_final=ai_result["titre"],
+                statut_titre=ai_result["statut"],
+                confiance=ai_result["confiance"],
+                nom_fichier=ai_result["nom_fichier"],
             )
-            logger.info("rotation.file.done job_id=%s file=%s angle=%s", 
-                       job_id, relative_path, rotation_angle)
+
+            status_msg = (
+                f"Rotation corrigée ({rotation_angle}°)"
+                if rotation_angle != 0
+                else "Aucune rotation nécessaire"
+            )
+            db_update_file(
+                job_id,
+                relative_path,
+                status="done",
+                progress=100,
+                error_msg=status_msg,
+            )
+            logger.info(
+                "rotation.file.done job_id=%s file=%s angle=%s",
+                job_id,
+                relative_path,
+                rotation_angle,
+            )
         else:
-            # En cas d'échec, copier le fichier original comme fallback
             shutil.copy2(str(input_pdf_path), str(output_pdf_path))
             db_update_file(
-                job_id, 
-                relative_path, 
-                status="done", 
-                progress=100, 
-                error_msg="Rotation échouée, fichier original copié"
+                job_id,
+                relative_path,
+                status="done",
+                progress=100,
+                error_msg="Rotation échouée, fichier original copié",
             )
             logger.warning("rotation.file.fallback job_id=%s file=%s", job_id, relative_path)
-            
+
     except Exception as err:  # noqa: BLE001
         err_msg = str(err)[:500]
         db_update_file(job_id, relative_path, status="error", progress=100, error_msg=err_msg)

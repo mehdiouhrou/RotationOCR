@@ -19,6 +19,7 @@ from flask import Flask, abort, jsonify, redirect, render_template, request, sen
 
 from job_store import (
     CLEANUP_INTERVAL_SECONDS,
+    DOWNLOAD_TTL_SECONDS,
     JOB_TTL_SECONDS,
     MAX_CONTENT_LENGTH,
     MAX_FILES_PER_JOB,
@@ -33,7 +34,9 @@ from job_store import (
     db_delete_job,
     db_get_job,
     db_get_job_counts,
+    db_get_jobs_to_delete_after_download,
     db_list_expired_job_ids,
+    db_mark_downloaded,
     dependency_status,
     init_db,
     sanitize_relative_path,
@@ -173,6 +176,25 @@ def safe_join_under(root: Path, rel_path: str) -> Path:
     abort(404)
 
 
+def _delete_job_files(job_id: str, job_snapshot: Optional[dict] = None) -> None:
+    """Supprime tous les fichiers disque d'un job (uploads, outputs, zips, export)."""
+    shutil.rmtree(UPLOADS_DIR / job_id, ignore_errors=True)
+    shutil.rmtree(OUTPUTS_DIR / job_id, ignore_errors=True)
+    zip_file = OUTPUTS_DIR / f"{job_id}_all.zip"
+    if zip_file.exists():
+        zip_file.unlink(missing_ok=True)
+
+    snap = job_snapshot or db_get_job(job_id)
+    if snap:
+        export_name = build_export_folder_name(job_id, float(snap["created_at"]))
+        export_zip = PROCESSED_DIR / f"{export_name}_export.zip"
+        if export_zip.exists():
+            export_zip.unlink(missing_ok=True)
+        export_dir = PROCESSED_DIR / export_name
+        if export_dir.exists():
+            shutil.rmtree(export_dir, ignore_errors=True)
+
+
 def create_zip_for_job(job_id):
     job = db_get_job(job_id)
     if not job:
@@ -204,26 +226,21 @@ def create_zip_for_job(job_id):
 
 def cleanup_expired_jobs():
     while not cleanup_stop_event.is_set():
+        # --- Nettoyage TTL classique (8h) ---
         now = time.time()
         expiration_before = now - JOB_TTL_SECONDS
-        expired_ids = db_list_expired_job_ids(expiration_before)
-
-        for job_id in expired_ids:
-            shutil.rmtree(UPLOADS_DIR / job_id, ignore_errors=True)
-            shutil.rmtree(OUTPUTS_DIR / job_id, ignore_errors=True)
-            zip_file = OUTPUTS_DIR / f"{job_id}_all.zip"
-            if zip_file.exists():
-                zip_file.unlink(missing_ok=True)
-
+        for job_id in db_list_expired_job_ids(expiration_before):
             job_snapshot = db_get_job(job_id)
-            if job_snapshot:
-                export_name = build_export_folder_name(job_id, float(job_snapshot["created_at"]))
-                export_zip = PROCESSED_DIR / f"{export_name}_export.zip"
-                if export_zip.exists():
-                    export_zip.unlink(missing_ok=True)
-
+            _delete_job_files(job_id, job_snapshot)
             db_delete_job(job_id)
-            log_event("cleanup.job_deleted", job_id=job_id)
+            log_event("cleanup.ttl_deleted", job_id=job_id)
+
+        # --- Nettoyage post-téléchargement (1h après downloaded_at) ---
+        for job_id in db_get_jobs_to_delete_after_download():
+            job_snapshot = db_get_job(job_id)
+            _delete_job_files(job_id, job_snapshot)
+            db_delete_job(job_id)
+            log_event("cleanup.download_deleted", job_id=job_id)
 
         cleanup_stop_event.wait(CLEANUP_INTERVAL_SECONDS)
 
@@ -237,6 +254,10 @@ cleanup_thread.start()
 def _stop_cleanup_thread():
     cleanup_stop_event.set()
 
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -264,10 +285,25 @@ def logout():
     return redirect(url_for("login"))
 
 
+# ---------------------------------------------------------------------------
+# Pages principales
+# ---------------------------------------------------------------------------
+
 @app.route("/", methods=["GET"])
 @login_required
 def index():
     return render_template("index.html", username=session.get("username"))
+
+
+@app.route("/results/<job_id>", methods=["GET"])
+@login_required
+def results(job_id):
+    job = db_get_job(job_id)
+    if not job:
+        abort(404)
+    if job.get("username") != session.get("username"):
+        abort(403)
+    return render_template("results.html", username=session.get("username"), job=job)
 
 
 @app.route("/exports", methods=["GET"])
@@ -276,10 +312,32 @@ def exports_page():
     return render_template("exports.html", username=session.get("username"))
 
 
+# ---------------------------------------------------------------------------
+# API exports
+# ---------------------------------------------------------------------------
+
 @app.route("/exports/api", methods=["GET"])
 @login_required
 def exports_api():
-    return jsonify({"exports": list_user_exports(session.get("username"))})
+    username = session.get("username")
+    exports = list_user_exports(username)
+
+    enriched = []
+    for exp in exports:
+        job_id = exp.get("job_id")
+        job = db_get_job(job_id) if job_id else None
+        exp["job_exists"]    = job is not None
+        exp["downloaded_at"] = job["downloaded_at"] if job else None
+        if job:
+            files = job.get("files", [])
+            exp["ok_count"]   = sum(1 for f in files if f.get("statut_titre") == "ok")
+            exp["warn_count"] = sum(1 for f in files if f.get("statut_titre") == "a_verifier")
+        else:
+            exp["ok_count"]   = 0
+            exp["warn_count"] = 0
+        enriched.append(exp)
+
+    return jsonify({"exports": enriched})
 
 
 @app.route("/exports/browse/<export_folder>", methods=["GET"])
@@ -352,18 +410,120 @@ def exports_file(export_folder, relative_path):
     )
 
 
-@app.route("/health", methods=["GET"])
-def health():
-    deps = dependency_status()
-    status_code = 200 if deps["all_ok"] else 500
-    return jsonify({"ok": deps["all_ok"], "dependencies": deps}), status_code
+# ---------------------------------------------------------------------------
+# Téléchargements ZIP (exports historique)
+# ---------------------------------------------------------------------------
+
+def generate_zip_from_directory(source_dir: Path, zip_buffer: io.BytesIO, arcname_prefix: str = ""):
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(source_dir):
+            for file in files:
+                file_path = Path(root) / file
+                rel_path = file_path.relative_to(source_dir)
+                arcname = str(Path(arcname_prefix) / rel_path) if arcname_prefix else str(rel_path)
+                zipf.write(file_path, arcname)
 
 
-@app.route("/metrics", methods=["GET"])
+@app.route("/exports/download/<job_id>", methods=["GET"])
 @login_required
-def metrics():
-    return jsonify({"jobs": db_get_job_counts()})
+def download_export_zip(job_id):
+    job = db_get_job(job_id)
+    if not job:
+        abort(404)
+    if job.get("username") != session.get("username"):
+        abort(403)
 
+    export_name = build_export_folder_name(job_id, float(job["created_at"]))
+    export_dir = PROCESSED_DIR / export_name
+
+    if not export_dir.exists() or not export_dir.is_dir():
+        abort(404)
+
+    root_dirs = [item for item in export_dir.iterdir() if item.is_dir()]
+    zip_buffer = io.BytesIO()
+
+    if len(root_dirs) == 1:
+        generate_zip_from_directory(root_dirs[0], zip_buffer, arcname_prefix=root_dirs[0].name)
+    elif len(root_dirs) > 1:
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for root_dir in root_dirs:
+                for root, dirs, files in os.walk(root_dir):
+                    for file in files:
+                        file_path = Path(root) / file
+                        rel_path = file_path.relative_to(root_dir)
+                        zipf.write(file_path, f"{root_dir.name}/{rel_path}")
+    else:
+        generate_zip_from_directory(export_dir, zip_buffer)
+
+    zip_buffer.seek(0)
+    return send_file(zip_buffer, as_attachment=True, download_name=f"{export_name}.zip", mimetype="application/zip")
+
+
+@app.route("/exports/download-selection", methods=["POST"])
+@login_required
+def download_selection_zip():
+    data = request.get_json()
+    if not data or "job_ids" not in data:
+        return jsonify({"error": "Donnees JSON invalides"}), 400
+
+    job_ids = data["job_ids"]
+    if not isinstance(job_ids, list):
+        return jsonify({"error": "job_ids doit etre une liste"}), 400
+
+    username = session.get("username")
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for job_id in job_ids:
+            job = db_get_job(job_id)
+            if not job or job.get("username") != username:
+                continue
+            export_name = build_export_folder_name(job_id, float(job["created_at"]))
+            export_dir = PROCESSED_DIR / export_name
+            if not export_dir.exists() or not export_dir.is_dir():
+                continue
+            for root, dirs, files in os.walk(export_dir):
+                for file in files:
+                    file_path = Path(root) / file
+                    rel_path = file_path.relative_to(export_dir)
+                    zipf.write(file_path, f"{export_name}/{rel_path}")
+
+    if zip_buffer.tell() == 0:
+        return jsonify({"error": "Aucun lot valide trouve"}), 404
+
+    zip_buffer.seek(0)
+    return send_file(zip_buffer, as_attachment=True, download_name="export_selection.zip", mimetype="application/zip")
+
+
+@app.route("/exports/download-all", methods=["GET"])
+@login_required
+def download_all_exports_zip():
+    username = session.get("username")
+    exports = list_user_exports(username)
+
+    if not exports:
+        return jsonify({"error": "Aucun export trouve"}), 404
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for export in exports:
+            export_dir = Path(export["path"])
+            export_name = export["folder"]
+            if not export_dir.exists() or not export_dir.is_dir():
+                continue
+            for root, dirs, files in os.walk(export_dir):
+                for file in files:
+                    file_path = Path(root) / file
+                    rel_path = file_path.relative_to(export_dir)
+                    zipf.write(file_path, f"{export_name}/{rel_path}")
+
+    zip_buffer.seek(0)
+    return send_file(zip_buffer, as_attachment=True, download_name="all_exports.zip", mimetype="application/zip")
+
+
+# ---------------------------------------------------------------------------
+# Upload + suivi job
+# ---------------------------------------------------------------------------
 
 @app.route("/upload", methods=["POST"])
 @login_required
@@ -374,15 +534,7 @@ def upload():
 
     allowed, retry_after = check_upload_rate_limit(username)
     if not allowed:
-        return (
-            jsonify(
-                {
-                    "error": "Trop de requetes upload, reessayez plus tard",
-                    "retry_after_seconds": retry_after,
-                }
-            ),
-            429,
-        )
+        return jsonify({"error": "Trop de requetes upload, reessayez plus tard", "retry_after_seconds": retry_after}), 429
 
     if not files:
         return jsonify({"error": "Aucun fichier recu"}), 400
@@ -418,7 +570,6 @@ def upload():
         target_path = job_upload_dir / rel_path
         target_path.parent.mkdir(parents=True, exist_ok=True)
         file_obj.save(target_path)
-
         file_entries.append(
             {
                 "relative_path": rel_path,
@@ -447,14 +598,11 @@ def status(job_id):
 
     done = job["done"]
     total = job["total"]
-    if total:
-        progress_sum = sum(int(file_data.get("progress", 0)) for file_data in job["files"])
-        global_progress = int(progress_sum / total)
-    else:
-        global_progress = 0
+    global_progress = int(sum(int(f.get("progress", 0)) for f in job["files"]) / total) if total else 0
 
     export_payload = None
-    if job.get("status") in {"finished", "error"}:
+    job_status = job.get("status")
+    if job_status in {"finished", "error"}:
         export_name = build_export_folder_name(job_id, float(job["created_at"]))
         export_dir = PROCESSED_DIR / export_name
         if export_dir.exists():
@@ -468,19 +616,26 @@ def status(job_id):
                 "has_error_report": (export_dir / "RAPPORT_ERREURS.txt").exists(),
             }
 
-    return jsonify(
-        {
-            "job_id": job_id,
-            "created_at": job["created_at"],
-            "job_status": job.get("status"),
-            "total": total,
-            "done": done,
-            "global_progress": global_progress,
-            "files": job["files"],
-            "export": export_payload,
-        }
-    )
+    response = {
+        "job_id": job_id,
+        "created_at": job["created_at"],
+        "job_status": job_status,
+        "total": total,
+        "done": done,
+        "global_progress": global_progress,
+        "files": job["files"],
+        "export": export_payload,
+    }
 
+    if job_status == "finished":
+        response["redirect_url"] = f"/results/{job_id}"
+
+    return jsonify(response)
+
+
+# ---------------------------------------------------------------------------
+# Téléchargement fichier individuel + ZIP job courant
+# ---------------------------------------------------------------------------
 
 @app.route("/download/<job_id>/<path:relative_path>", methods=["GET"])
 @login_required
@@ -500,177 +655,7 @@ def download_file(job_id, relative_path):
     if not file_path.exists():
         abort(404)
 
-    return send_file(
-        file_path,
-        as_attachment=True,
-        download_name=Path(safe_rel_path).name,
-    )
-
-
-def generate_zip_from_directory(source_dir: Path, zip_buffer: io.BytesIO, arcname_prefix: str = ""):
-    """Génère un ZIP en mémoire à partir d'un répertoire source."""
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(source_dir):
-            for file in files:
-                file_path = Path(root) / file
-                # Calculer le chemin relatif par rapport au répertoire source
-                rel_path = file_path.relative_to(source_dir)
-                # Construire le chemin dans le ZIP avec le préfixe
-                arcname = str(Path(arcname_prefix) / rel_path) if arcname_prefix else str(rel_path)
-                zipf.write(file_path, arcname)
-
-
-@app.route("/exports/download/<job_id>", methods=["GET"])
-@login_required
-def download_export_zip(job_id):
-    """Télécharger un lot en ZIP (un ZIP par sous-dossier racine si plusieurs)."""
-    # Vérifier que le job existe et appartient à l'utilisateur
-    job = db_get_job(job_id)
-    if not job:
-        abort(404)
-    if job.get("username") != session.get("username"):
-        abort(403)
-    
-    # Trouver le dossier d'export correspondant
-    export_name = build_export_folder_name(job_id, float(job["created_at"]))
-    export_dir = PROCESSED_DIR / export_name
-    
-    if not export_dir.exists() or not export_dir.is_dir():
-        abort(404)
-    
-    # Vérifier les sous-dossiers racine
-    root_items = list(export_dir.iterdir())
-    root_dirs = [item for item in root_items if item.is_dir()]
-    
-    # Si un seul dossier racine -> un seul ZIP
-    if len(root_dirs) == 1:
-        zip_buffer = io.BytesIO()
-        generate_zip_from_directory(root_dirs[0], zip_buffer, arcname_prefix=root_dirs[0].name)
-        zip_buffer.seek(0)
-        return send_file(
-            zip_buffer,
-            as_attachment=True,
-            download_name=f"{export_name}.zip",
-            mimetype='application/zip'
-        )
-    # Si plusieurs dossiers racine -> un ZIP par sous-dossier
-    elif len(root_dirs) > 1:
-        # Créer un ZIP contenant tous les sous-dossiers
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for root_dir in root_dirs:
-                for root, dirs, files in os.walk(root_dir):
-                    for file in files:
-                        file_path = Path(root) / file
-                        rel_path = file_path.relative_to(root_dir)
-                        arcname = f"{root_dir.name}/{rel_path}"
-                        zipf.write(file_path, arcname)
-        zip_buffer.seek(0)
-        return send_file(
-            zip_buffer,
-            as_attachment=True,
-            download_name=f"{export_name}.zip",
-            mimetype='application/zip'
-        )
-    # Si aucun dossier (que des fichiers) -> un seul ZIP avec les fichiers à la racine
-    else:
-        zip_buffer = io.BytesIO()
-        generate_zip_from_directory(export_dir, zip_buffer)
-        zip_buffer.seek(0)
-        return send_file(
-            zip_buffer,
-            as_attachment=True,
-            download_name=f"{export_name}.zip",
-            mimetype='application/zip'
-        )
-
-
-@app.route("/exports/download-selection", methods=["POST"])
-@login_required
-def download_selection_zip():
-    """Télécharger une sélection de lots en un seul ZIP."""
-    data = request.get_json()
-    if not data or "job_ids" not in data:
-        return jsonify({"error": "Donnees JSON invalides"}), 400
-    
-    job_ids = data["job_ids"]
-    if not isinstance(job_ids, list):
-        return jsonify({"error": "job_ids doit etre une liste"}), 400
-    
-    username = session.get("username")
-    zip_buffer = io.BytesIO()
-    
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for job_id in job_ids:
-            # Vérifier que le job existe et appartient à l'utilisateur
-            job = db_get_job(job_id)
-            if not job:
-                continue
-            if job.get("username") != username:
-                continue
-            
-            # Trouver le dossier d'export
-            export_name = build_export_folder_name(job_id, float(job["created_at"]))
-            export_dir = PROCESSED_DIR / export_name
-            
-            if not export_dir.exists() or not export_dir.is_dir():
-                continue
-            
-            # Ajouter tous les fichiers du dossier d'export au ZIP
-            for root, dirs, files in os.walk(export_dir):
-                for file in files:
-                    file_path = Path(root) / file
-                    rel_path = file_path.relative_to(export_dir)
-                    arcname = f"{export_name}/{rel_path}"
-                    zipf.write(file_path, arcname)
-    
-    if zip_buffer.tell() == 0:  # ZIP vide
-        return jsonify({"error": "Aucun lot valide trouve"}), 404
-    
-    zip_buffer.seek(0)
-    return send_file(
-        zip_buffer,
-        as_attachment=True,
-        download_name="export_selection.zip",
-        mimetype='application/zip'
-    )
-
-
-@app.route("/exports/download-all", methods=["GET"])
-@login_required
-def download_all_exports_zip():
-    """Télécharger TOUS les lots de l'utilisateur en un seul ZIP."""
-    username = session.get("username")
-    exports = list_user_exports(username)
-    
-    if not exports:
-        return jsonify({"error": "Aucun export trouve"}), 404
-    
-    zip_buffer = io.BytesIO()
-    
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for export in exports:
-            export_dir = Path(export["path"])
-            export_name = export["folder"]
-            
-            if not export_dir.exists() or not export_dir.is_dir():
-                continue
-            
-            # Ajouter tous les fichiers du dossier d'export au ZIP
-            for root, dirs, files in os.walk(export_dir):
-                for file in files:
-                    file_path = Path(root) / file
-                    rel_path = file_path.relative_to(export_dir)
-                    arcname = f"{export_name}/{rel_path}"
-                    zipf.write(file_path, arcname)
-    
-    zip_buffer.seek(0)
-    return send_file(
-        zip_buffer,
-        as_attachment=True,
-        download_name="all_exports.zip",
-        mimetype='application/zip'
-    )
+    return send_file(file_path, as_attachment=True, download_name=Path(safe_rel_path).name)
 
 
 @app.route("/download_all/<job_id>", methods=["GET"])
@@ -689,6 +674,41 @@ def download_all(job_id):
         abort(404)
 
     return send_file(zip_file, as_attachment=True, download_name=f"rotation_{job_id}.zip")
+
+
+# ---------------------------------------------------------------------------
+# Mark downloaded (démarre timer suppression 1h)
+# ---------------------------------------------------------------------------
+
+@app.route("/mark_downloaded/<job_id>", methods=["POST"])
+@login_required
+def mark_downloaded(job_id):
+    job = db_get_job(job_id)
+    if not job:
+        return jsonify({"error": "Job introuvable"}), 404
+    if job.get("username") != session.get("username"):
+        return jsonify({"error": "Acces refuse"}), 403
+
+    delete_at = db_mark_downloaded(job_id)
+    log_event("job.mark_downloaded", job_id=job_id, delete_at=delete_at)
+    return jsonify({"status": "ok", "delete_at": delete_at})
+
+
+# ---------------------------------------------------------------------------
+# Utilitaires
+# ---------------------------------------------------------------------------
+
+@app.route("/health", methods=["GET"])
+def health():
+    deps = dependency_status()
+    status_code = 200 if deps["all_ok"] else 500
+    return jsonify({"ok": deps["all_ok"], "dependencies": deps}), status_code
+
+
+@app.route("/metrics", methods=["GET"])
+@login_required
+def metrics():
+    return jsonify({"jobs": db_get_job_counts()})
 
 
 if __name__ == "__main__":

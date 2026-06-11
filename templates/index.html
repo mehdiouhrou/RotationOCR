@@ -3,557 +3,540 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Correction Rotation</title>
+    <title>RotationOCR — Upload</title>
     <style>
-      :root {
-        --bg0: #0b1220;
-        --bg1: #0f1b33;
-        --card: rgba(255, 255, 255, 0.92);
-        --card2: rgba(255, 255, 255, 0.86);
-        --text: #0f172a;
-        --muted: #5b6b86;
-        --border: rgba(15, 23, 42, 0.12);
-        --primary: #2563eb;
-        --primary2: #1d4ed8;
-        --ok: #16a34a;
-        --warn: #f59e0b;
-        --error: #dc2626;
-        --shadow: 0 18px 50px rgba(2, 6, 23, 0.35);
-      }
-      * {
-        box-sizing: border-box;
-      }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
       body {
-        margin: 0;
-        color: var(--text);
-        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        background: #f5f6fa;
+        color: #1a1a2e;
         min-height: 100vh;
-        background: radial-gradient(1200px 700px at 20% 0%, rgba(37, 99, 235, 0.35), transparent 55%),
-          radial-gradient(900px 600px at 90% 20%, rgba(16, 185, 129, 0.18), transparent 55%),
-          linear-gradient(180deg, var(--bg0), var(--bg1));
-      }
-      .container {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 22px 18px 40px;
-      }
-      .topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-      }
-      .brand {
         display: flex;
         flex-direction: column;
-        gap: 6px;
       }
-      .title {
-        margin: 0;
-        font-size: 26px;
+
+      /* ── Header ── */
+      header {
+        background: #1a1a2e;
+        color: #fff;
+        padding: 0 28px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-shrink: 0;
+      }
+      .brand {
+        font-size: 18px;
+        font-weight: 700;
         letter-spacing: -0.02em;
-        color: #ffffff;
       }
-      .subtitle {
-        margin: 0;
-        color: rgba(255, 255, 255, 0.72);
-        font-size: 14px;
-        max-width: 720px;
-        line-height: 1.35;
-      }
-      .userbox {
+      .brand span { color: #4f8ef7; }
+      .header-nav {
         display: flex;
         align-items: center;
         gap: 10px;
+      }
+      .nav-link {
+        color: rgba(255,255,255,0.82);
+        text-decoration: none;
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.9);
-      }
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 10px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        backdrop-filter: blur(10px);
-      }
-      .card {
-        background: var(--card);
-        border-radius: 14px;
-        border: 1px solid var(--border);
-        padding: 16px;
-        margin-bottom: 14px;
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(10px);
-      }
-      .card.soft {
-        background: var(--card2);
-      }
-      .dropzone {
-        border: 2px dashed rgba(37, 99, 235, 0.35);
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        color: var(--muted);
-        transition: all 0.15s ease;
-        background: rgba(37, 99, 235, 0.04);
-      }
-      .dropzone.dragover {
-        border-color: var(--primary);
-        color: var(--primary);
-        background: rgba(37, 99, 235, 0.10);
-      }
-      .controls {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 12px;
-      }
-      button,
-      .link-btn {
-        border: 0;
+        padding: 7px 12px;
         border-radius: 8px;
-        padding: 9px 12px;
+        transition: background 0.15s;
+      }
+      .nav-link:hover { background: rgba(255,255,255,0.10); }
+      .btn-logout {
+        background: rgba(255,255,255,0.10);
+        border: 1px solid rgba(255,255,255,0.18);
+        color: #fff;
         font-size: 14px;
+        padding: 7px 14px;
+        border-radius: 8px;
         cursor: pointer;
         text-decoration: none;
+        transition: background 0.15s;
       }
-      button.primary {
-        background: linear-gradient(180deg, var(--primary), var(--primary2));
-        color: #fff;
-        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+      .btn-logout:hover { background: rgba(255,255,255,0.18); }
+
+      /* ── Main ── */
+      main {
+        flex: 1;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 48px 16px 64px;
       }
-      button.secondary,
-      .link-btn {
-        background: rgba(15, 23, 42, 0.06);
-        color: #0f172a;
+      .upload-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(26,26,46,0.10);
+        padding: 36px 40px;
+        width: 100%;
+        max-width: 680px;
       }
-      button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      .file-list,
-      .status-list {
-        margin: 10px 0 0;
-        padding: 0;
-        list-style: none;
-      }
-      .file-list li,
-      .status-list li {
-        border-top: 1px solid var(--border);
-        padding: 8px 0;
-        font-size: 14px;
-      }
-      .group-title {
-        border-top: 1px solid var(--border);
-        padding: 10px 0 6px;
-        font-size: 12px;
+      .upload-card h1 {
+        font-size: 22px;
         font-weight: 700;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-        color: rgba(15, 23, 42, 0.65);
+        margin-bottom: 6px;
+        color: #1a1a2e;
       }
-      .path {
-        color: var(--muted);
-        font-family: monospace;
+      .upload-card .subtitle {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 28px;
       }
-      .status-head {
+
+      /* ── Drop zone ── */
+      .dropzone {
+        border: 2px dashed #c7d2fe;
+        border-radius: 12px;
+        background: #f8f9ff;
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+        padding: 32px;
+        text-align: center;
+      }
+      .dropzone.dragover {
+        border-color: #4f8ef7;
+        background: #eff6ff;
+        border-style: solid;
+      }
+      .dropzone svg { color: #a5b4fc; }
+      .dropzone .dz-text {
+        font-size: 16px;
+        font-weight: 500;
+        color: #374151;
+      }
+      .dropzone .dz-sub {
+        font-size: 13px;
+        color: #9ca3af;
+      }
+
+      /* ── Boutons sélection ── */
+      .select-btns {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .btn-select {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .btn-select:hover { border-color: #a5b4fc; background: #f5f3ff; }
+
+      /* ── Liste fichiers sélectionnés ── */
+      .file-summary {
+        margin-top: 20px;
+        display: none;
+      }
+      .file-summary.visible { display: block; }
+      .file-summary-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .file-count {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1a1a2e;
+      }
+      .file-size-total {
+        font-size: 13px;
+        color: #6b7280;
+        margin-left: 8px;
+      }
+      .btn-clear {
+        background: none;
+        border: none;
+        font-size: 13px;
+        color: #ef4444;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background 0.15s;
+      }
+      .btn-clear:hover { background: #fef2f2; }
+      .file-list-scroll {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #fafafa;
+      }
+      .file-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 13px;
+        gap: 8px;
+      }
+      .file-item:last-child { border-bottom: none; }
+      .file-item-name {
+        color: #374151;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+        min-width: 0;
+      }
+      .file-item-size { color: #9ca3af; white-space: nowrap; flex-shrink: 0; }
+
+      /* ── Bouton lancer ── */
+      .launch-wrap {
+        margin-top: 24px;
+        text-align: center;
+      }
+      .btn-launch {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 40px;
+        background: #16213e;
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, transform 0.1s;
+        box-shadow: 0 4px 14px rgba(22,33,62,0.25);
+      }
+      .btn-launch:hover:not(:disabled) { background: #0f3460; transform: translateY(-1px); }
+      .btn-launch:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+      /* ── Progression ── */
+      .progress-section {
+        margin-top: 28px;
+        display: none;
+      }
+      .progress-section.visible { display: block; }
+      .progress-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #1a1a2e;
       }
-      .progress-wrap {
+      .progress-track {
         height: 8px;
+        background: #e5e7eb;
         border-radius: 99px;
-        background: #e6edf9;
         overflow: hidden;
+        margin-bottom: 16px;
       }
       .progress-bar {
         height: 100%;
+        background: linear-gradient(90deg, #4f8ef7, #0f3460);
+        border-radius: 99px;
         width: 0%;
-        background: var(--primary);
-        transition: width 0.2s ease;
+        transition: width 0.3s ease;
       }
-      .meta {
+      .processing-list {
+        list-style: none;
         display: flex;
-        justify-content: space-between;
-        gap: 12px;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 260px;
+        overflow-y: auto;
       }
-      .msg {
-        color: var(--muted);
-        margin-top: 6px;
-        min-height: 18px;
-      }
-      .state-ok {
-        color: var(--ok);
-      }
-      .state-running {
-        color: var(--warn);
-      }
-      .state-error {
-        color: var(--error);
-      }
-      .downloads {
+      .processing-item {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .export {
-        margin-top: 12px;
-        padding: 12px;
-        border-radius: 12px;
-        border: 1px solid rgba(37, 99, 235, 0.22);
-        background: rgba(37, 99, 235, 0.06);
-      }
-      .export h3 {
-        margin: 0 0 8px;
-        font-size: 14px;
-      }
-      .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        font-size: 12px;
-        color: rgba(15, 23, 42, 0.78);
-        word-break: break-all;
-      }
-      .row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
         align-items: center;
-        margin-top: 8px;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: #f9fafb;
+        font-size: 13px;
+        border: 1px solid #f3f4f6;
       }
-      .hidden {
-        display: none;
+      .processing-item .pi-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #374151;
       }
-      input[type="file"] {
-        display: none;
+      .pi-status {
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
       }
+      .pi-status.pending   { color: #9ca3af; }
+      .pi-status.processing { color: #f59e0b; }
+      .pi-status.done      { color: #16a34a; }
+      .pi-status.error     { color: #dc2626; }
+
+      /* Spinner CSS */
+      .spinner {
+        width: 14px; height: 14px;
+        border: 2px solid #e5e7eb;
+        border-top-color: #f59e0b;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .status-msg {
+        margin-top: 12px;
+        font-size: 14px;
+        text-align: center;
+        min-height: 20px;
+      }
+      .status-msg.ok    { color: #16a34a; }
+      .status-msg.warn  { color: #f59e0b; }
+      .status-msg.error { color: #dc2626; }
+
+      /* ── Hidden ── */
+      input[type="file"] { display: none; }
     </style>
   </head>
   <body>
-    <div class="container">
-      <header class="topbar">
-        <div class="brand">
-          <h1 class="title">Correction Rotation</h1>
-          <p class="subtitle">
-            Correction automatique de rotation des PDF scannés, arborescence conservée, export groupe dans
-            <span class="mono" style="color: rgba(255,255,255,0.85)">fichiers_traites/</span>
-          </p>
-        </div>
-        <div class="userbox">
-          <span class="pill"><span>Connecte</span><strong>{{ username }}</strong></span>
-          <a class="link-btn" href="/">Traitement</a>
-          <a class="link-btn" href="/exports">Exports</a>
-          <a class="link-btn" href="/logout">Déconnexion</a>
-        </div>
-      </header>
+    <header>
+      <div class="brand">Rotation<span>OCR</span></div>
+      <nav class="header-nav">
+        <a class="nav-link" href="/exports">📋 Historique des lots</a>
+        <a class="btn-logout" href="/logout">Déconnexion</a>
+      </nav>
+    </header>
 
-      <section class="card">
+    <main>
+      <div class="upload-card">
+        <h1>Correction de rotation PDF</h1>
+        <p class="subtitle">Déposez vos fichiers, l'IA corrige l'orientation et renomme chaque document.</p>
+
+        <!-- Zone drop -->
         <div id="dropzone" class="dropzone">
-          Glissez-deposez des PDF ou un dossier ici
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 16 12 12 8 16"></polyline>
+            <line x1="12" y1="12" x2="12" y2="21"></line>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+          </svg>
+          <div class="dz-text">Glissez vos fichiers ou dossiers ici</div>
+          <div class="dz-sub">Formats acceptés : PDF uniquement</div>
         </div>
-        <div class="controls">
-          <button id="pickFilesBtn" class="secondary" type="button">Selectionner fichiers</button>
-          <button id="pickFolderBtn" class="secondary" type="button">Selectionner dossier</button>
-          <button id="startBtn" class="primary" type="button" disabled>Lancer le traitement</button>
-          <button id="resetBtn" class="secondary hidden" type="button">Nouveau traitement</button>
-        </div>
-        <input id="filesInput" type="file" accept=".pdf,application/pdf" multiple />
-        <input id="folderInput" type="file" accept=".pdf,application/pdf" webkitdirectory directory multiple />
-        <ul id="detectedFiles" class="file-list"></ul>
-        <div id="message" class="msg"></div>
-      </section>
 
-      <section id="statusCard" class="card soft hidden">
-        <div class="status-head">
-          <strong>Progression globale</strong>
-          <span id="globalText">0%</span>
+        <!-- Boutons sélection -->
+        <div class="select-btns">
+          <button class="btn-select" id="btnFolder" type="button">📁 Sélectionner un dossier</button>
+          <button class="btn-select" id="btnFiles" type="button">📄 Sélectionner des fichiers</button>
         </div>
-        <div class="progress-wrap">
-          <div id="globalBar" class="progress-bar"></div>
-        </div>
-        <ul id="statusList" class="status-list"></ul>
-      </section>
+        <input id="inputFolder" type="file" webkitdirectory directory multiple accept=".pdf,application/pdf" />
+        <input id="inputFiles"  type="file" multiple accept=".pdf,application/pdf" />
 
-      <section id="postJobCard" class="card hidden">
-        <h3 style="margin:0 0 10px; font-size:16px;">Traitement termine</h3>
-        <p class="msg" style="margin:0 0 10px;">
-          Les fichiers restent sur le serveur. Ouvrez la page
-          <a href="/exports">Exports</a>
-          pour les parcourir (pas de telechargement automatique).
-        </p>
-        <div id="exportBox" class="export hidden">
-          <h3 style="margin:0 0 8px; font-size:14px;">Dossier serveur (copie/colle)</h3>
-          <div id="exportPath" class="mono"></div>
-          <div class="row">
-            <button id="copyExportPathBtn" class="secondary" type="button">Copier le chemin</button>
-            <a id="openExportsBtn" class="link-btn" href="/exports">Ouvrir Exports</a>
-            <span id="exportMeta" class="msg" style="margin:0;"></span>
+        <!-- Liste fichiers -->
+        <div id="fileSummary" class="file-summary">
+          <div class="file-summary-header">
+            <div>
+              <span class="file-count" id="fileCount">0 fichier(s)</span>
+              <span class="file-size-total" id="fileSizeTotal"></span>
+            </div>
+            <button class="btn-clear" id="btnClear" type="button">✕ Vider la sélection</button>
+          </div>
+          <div class="file-list-scroll">
+            <ul id="fileList"></ul>
           </div>
         </div>
-      </section>
-    </div>
+
+        <!-- Bouton lancer -->
+        <div class="launch-wrap">
+          <button class="btn-launch" id="btnLaunch" type="button" disabled>
+            🚀 Lancer le traitement
+          </button>
+        </div>
+
+        <!-- Section progression -->
+        <div id="progressSection" class="progress-section">
+          <div class="progress-header">
+            <span>Traitement en cours…</span>
+            <span id="progressText">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <ul class="processing-list" id="processingList"></ul>
+          <div class="status-msg" id="statusMsg"></div>
+        </div>
+      </div>
+    </main>
 
     <script>
-      const filesInput = document.getElementById("filesInput");
-      const folderInput = document.getElementById("folderInput");
-      const dropzone = document.getElementById("dropzone");
-      const pickFilesBtn = document.getElementById("pickFilesBtn");
-      const pickFolderBtn = document.getElementById("pickFolderBtn");
-      const startBtn = document.getElementById("startBtn");
-      const resetBtn = document.getElementById("resetBtn");
-      const detectedFilesEl = document.getElementById("detectedFiles");
-      const messageEl = document.getElementById("message");
-      const statusCard = document.getElementById("statusCard");
-      const statusList = document.getElementById("statusList");
-      const globalBar = document.getElementById("globalBar");
-      const globalText = document.getElementById("globalText");
-      const postJobCard = document.getElementById("postJobCard");
-      const exportBox = document.getElementById("exportBox");
-      const exportPathEl = document.getElementById("exportPath");
-      const exportMeta = document.getElementById("exportMeta");
-      const copyExportPathBtn = document.getElementById("copyExportPathBtn");
+      // ── State ──
+      let selectedItems = [];   // { key, file, relativePath }
+      let currentJobId  = null;
+      let pollTimer     = null;
 
-      let selectedItems = [];
-      let currentJobId = null;
-      let pollTimer = null;
+      // ── DOM refs ──
+      const dropzone        = document.getElementById("dropzone");
+      const inputFolder     = document.getElementById("inputFolder");
+      const inputFiles      = document.getElementById("inputFiles");
+      const btnFolder       = document.getElementById("btnFolder");
+      const btnFiles        = document.getElementById("btnFiles");
+      const btnClear        = document.getElementById("btnClear");
+      const btnLaunch       = document.getElementById("btnLaunch");
+      const fileSummary     = document.getElementById("fileSummary");
+      const fileCount       = document.getElementById("fileCount");
+      const fileSizeTotal   = document.getElementById("fileSizeTotal");
+      const fileList        = document.getElementById("fileList");
+      const progressSection = document.getElementById("progressSection");
+      const progressBar     = document.getElementById("progressBar");
+      const progressText    = document.getElementById("progressText");
+      const processingList  = document.getElementById("processingList");
+      const statusMsg       = document.getElementById("statusMsg");
 
-      function setMessage(text, cls = "") {
-        messageEl.className = `msg ${cls}`.trim();
-        messageEl.textContent = text || "";
+      // ── Helpers ──
+      function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + " o";
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " Ko";
+        return (bytes / (1024 * 1024)).toFixed(1) + " Mo";
       }
 
-      function sanitizeBrowserPath(pathValue) {
-        return (pathValue || "").replace(/\\/g, "/").replace(/^\/+/, "");
+      function sanitizePath(p) {
+        return (p || "").replace(/\\/g, "/").replace(/^\/+/, "");
       }
 
       function isPdf(file) {
-        const name = (file.name || "").toLowerCase();
-        return name.endsWith(".pdf");
+        return (file.name || "").toLowerCase().endsWith(".pdf");
       }
 
       function addFiles(fileList) {
         for (const file of fileList) {
-          if (!isPdf(file)) {
-            continue;
-          }
-          const relativePath = sanitizeBrowserPath(file.webkitRelativePath || file.name);
-          if (!relativePath) {
-            continue;
-          }
+          if (!isPdf(file)) continue;
+          const relativePath = sanitizePath(file.webkitRelativePath || file.name);
+          if (!relativePath) continue;
           const key = `${relativePath}::${file.size}`;
-          if (selectedItems.some((item) => item.key === key)) {
-            continue;
+          if (!selectedItems.some(i => i.key === key)) {
+            selectedItems.push({ key, file, relativePath });
           }
-          selectedItems.push({ key, file, relativePath });
         }
-        refreshDetectedList();
+        refreshUI();
       }
 
-      async function walkEntry(entry, basePath = "") {
+      async function walkEntry(entry, base = "") {
         if (entry.isFile) {
-          await new Promise((resolve) => {
-            entry.file((file) => {
-              if (isPdf(file)) {
-                const rel = sanitizeBrowserPath(`${basePath}${file.name}`);
-                const key = `${rel}::${file.size}`;
-                if (!selectedItems.some((item) => item.key === key)) {
-                  selectedItems.push({ key, file, relativePath: rel });
-                }
+          await new Promise(resolve => entry.file(file => {
+            if (isPdf(file)) {
+              const rel = sanitizePath(`${base}${file.name}`);
+              const key = `${rel}::${file.size}`;
+              if (!selectedItems.some(i => i.key === key)) {
+                selectedItems.push({ key, file, relativePath: rel });
               }
-              resolve();
-            });
-          });
+            }
+            resolve();
+          }));
         } else if (entry.isDirectory) {
           const reader = entry.createReader();
-          const entries = await new Promise((resolve) => reader.readEntries(resolve));
-          for (const child of entries) {
-            await walkEntry(child, `${basePath}${entry.name}/`);
-          }
+          const entries = await new Promise(r => reader.readEntries(r));
+          for (const child of entries) await walkEntry(child, `${base}${entry.name}/`);
         }
       }
 
-      async function handleDropItems(dataTransferItems) {
-        const entries = [];
-        for (const item of dataTransferItems) {
-          if (item.webkitGetAsEntry) {
-            const entry = item.webkitGetAsEntry();
-            if (entry) {
-              entries.push(entry);
-            }
-          }
-        }
-        if (entries.length === 0) {
-          addFiles(Array.from(dataTransferItems).map((it) => it.getAsFile()).filter(Boolean));
-          return;
-        }
-        for (const entry of entries) {
-          await walkEntry(entry, "");
-        }
-        refreshDetectedList();
-      }
+      function refreshUI() {
+        const hasFiles = selectedItems.length > 0;
+        btnLaunch.disabled = !hasFiles;
 
-      function refreshDetectedList() {
-        detectedFilesEl.innerHTML = "";
-        if (!selectedItems.length) {
-          startBtn.disabled = true;
-          setMessage("Aucun PDF selectionne.");
+        if (!hasFiles) {
+          fileSummary.classList.remove("visible");
           return;
         }
-        startBtn.disabled = false;
-        setMessage(`${selectedItems.length} PDF pret(s) a traiter.`);
-        selectedItems
-          .slice()
+
+        fileSummary.classList.add("visible");
+        const totalSize = selectedItems.reduce((s, i) => s + i.file.size, 0);
+        fileCount.textContent = `${selectedItems.length} fichier(s)`;
+        fileSizeTotal.textContent = `· ${formatBytes(totalSize)}`;
+
+        fileList.innerHTML = "";
+        [...selectedItems]
           .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
-          .forEach((item) => {
+          .forEach(({ file, relativePath }) => {
             const li = document.createElement("li");
-            li.innerHTML = `<span class="path">${item.relativePath}</span>`;
-            detectedFilesEl.appendChild(li);
+            li.className = "file-item";
+            li.innerHTML = `
+              <span class="file-item-name" title="${esc(relativePath)}">${esc(relativePath)}</span>
+              <span class="file-item-size">${formatBytes(file.size)}</span>
+            `;
+            fileList.appendChild(li);
           });
       }
 
-      function resetUI() {
+      function clearSelection() {
         selectedItems = [];
-        currentJobId = null;
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
-        filesInput.value = "";
-        folderInput.value = "";
-        statusCard.classList.add("hidden");
-        postJobCard.classList.add("hidden");
-        resetBtn.classList.add("hidden");
-        statusList.innerHTML = "";
-        exportBox.classList.add("hidden");
-        exportPathEl.textContent = "";
-        exportMeta.textContent = "";
-        globalBar.style.width = "0%";
-        globalText.textContent = "0%";
-        refreshDetectedList();
+        inputFolder.value = "";
+        inputFiles.value = "";
+        refreshUI();
       }
 
-      function statusClass(status) {
-        if (status === "done") return "state-ok";
-        if (status === "error") return "state-error";
-        return "state-running";
+      function esc(s) {
+        return String(s)
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+          .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
       }
 
-      function statusIcon(status) {
-        if (status === "done") return "✓";
-        if (status === "error") return "✗";
-        return "⏳";
-      }
-
-      function folderKey(relativePath) {
-        const parts = relativePath.split("/");
-        if (parts.length <= 1) return "(racine)";
-        return parts.slice(0, -1).join("/");
-      }
-
-      function renderStatus(data) {
-        const global = Number.isFinite(data.global_progress) ? data.global_progress : 0;
-        globalBar.style.width = `${global}%`;
-        globalText.textContent = `${global}% (${data.done}/${data.total})`;
-        statusList.innerHTML = "";
-
-        const groups = new Map();
-        for (const file of data.files) {
-          const key = folderKey(file.relative_path);
-          if (!groups.has(key)) groups.set(key, []);
-          groups.get(key).push(file);
-        }
-
-        const keys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
-        for (const key of keys) {
-          const header = document.createElement("li");
-          header.className = "group-title";
-          header.textContent = `Dossier: ${key}`;
-          statusList.appendChild(header);
-
-          for (const file of groups.get(key)) {
-            const li = document.createElement("li");
-            const cls = statusClass(file.status);
-            const msg = file.error_msg ? ` - ${file.error_msg}` : "";
-            li.innerHTML = `
-            <div class="meta">
-              <span class="${cls}">${statusIcon(file.status)} ${file.status.toUpperCase()}</span>
-              <span>${file.progress}%</span>
-            </div>
-            <div class="path">${file.relative_path}</div>
-            <div class="progress-wrap"><div class="progress-bar" style="width:${file.progress}%"></div></div>
-            <div class="${cls}" style="font-size:12px;">${msg}</div>
-          `;
-            statusList.appendChild(li);
+      // ── Drag & drop ──
+      ["dragenter","dragover"].forEach(ev =>
+        dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add("dragover"); })
+      );
+      ["dragleave","drop"].forEach(ev =>
+        dropzone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.remove("dragover"); })
+      );
+      dropzone.addEventListener("drop", async e => {
+        if (e.dataTransfer?.items?.length) {
+          const entries = [];
+          for (const item of e.dataTransfer.items) {
+            const entry = item.webkitGetAsEntry?.();
+            if (entry) entries.push(entry);
+          }
+          if (entries.length) {
+            for (const entry of entries) await walkEntry(entry, "");
+            refreshUI();
+            return;
           }
         }
+        if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files);
+      });
+      dropzone.addEventListener("click", () => inputFiles.click());
 
-        const filesFinished = data.done >= data.total && data.total > 0;
-        const jobStatus = data.job_status || "";
-        const jobClosed = jobStatus === "finished" || jobStatus === "error";
-        const allFinished = filesFinished && jobClosed;
+      // ── Boutons sélection ──
+      btnFolder.addEventListener("click", () => inputFolder.click());
+      btnFiles.addEventListener("click",  () => inputFiles.click());
+      inputFolder.addEventListener("change", () => addFiles(inputFolder.files));
+      inputFiles.addEventListener("change",  () => addFiles(inputFiles.files));
+      btnClear.addEventListener("click", clearSelection);
 
-        if (filesFinished && !jobClosed) {
-          setMessage("Finalisation en cours (export vers fichiers_traites)...", "state-running");
-        }
-
-        if (allFinished) {
-          if (pollTimer) {
-            clearInterval(pollTimer);
-            pollTimer = null;
-          }
-          const hasErrors = (data.files || []).some((f) => f.status === "error");
-          if (jobStatus === "error" || hasErrors) {
-            setMessage("Traitement termine avec erreurs (voir le rapport dans le dossier export).", "state-error");
-          } else {
-            setMessage("Traitement termine.", "state-ok");
-          }
-          showDownloads(data);
-        }
-      }
-
-      function showDownloads(data) {
-        postJobCard.classList.remove("hidden");
-
-        if (data.export && data.export.path) {
-          exportBox.classList.remove("hidden");
-          exportPathEl.textContent = data.export.path;
-          const report = data.export.has_error_report ? " (rapport d'erreurs inclus)" : "";
-          exportMeta.textContent = `OK: ${data.export.done_files} | Erreurs: ${data.export.error_files}${report}`;
-          exportMeta.className = "msg";
-        } else {
-          exportBox.classList.add("hidden");
-          exportPathEl.textContent = "";
-          exportMeta.textContent = "Export en cours de preparation... Rafraichissez la page Exports dans quelques secondes.";
-        }
-      }
-
-      async function pollStatus() {
-        if (!currentJobId) return;
-        try {
-          const res = await fetch(`/status/${encodeURIComponent(currentJobId)}`);
-          if (!res.ok) {
-            throw new Error("Erreur de recuperation du statut");
-          }
-          const data = await res.json();
-          renderStatus(data);
-        } catch (error) {
-          setMessage(error.message, "state-error");
-        }
-      }
-
+      // ── Upload & polling ──
       async function startProcessing() {
-        if (!selectedItems.length) {
-          setMessage("Aucun fichier a traiter.", "state-error");
-          return;
-        }
-        startBtn.disabled = true;
-        setMessage("Envoi en cours...");
-        statusCard.classList.remove("hidden");
-        postJobCard.classList.add("hidden");
-        statusList.innerHTML = "";
+        if (!selectedItems.length) return;
+
+        btnLaunch.disabled = true;
+        fileSummary.classList.remove("visible");
+        progressSection.classList.add("visible");
+        setStatusMsg("Envoi des fichiers…", "warn");
 
         const formData = new FormData();
         for (const item of selectedItems) {
@@ -562,65 +545,84 @@
         }
 
         try {
-          const res = await fetch("/upload", { method: "POST", body: formData });
+          const res  = await fetch("/upload", { method: "POST", body: formData });
           const data = await res.json();
-          if (!res.ok) {
-            throw new Error(data.error || "Echec upload");
-          }
+          if (!res.ok) throw new Error(data.error || "Échec de l'upload");
+
           currentJobId = data.job_id;
-          setMessage(`Job ${currentJobId} demarre.`, "state-running");
-          resetBtn.classList.remove("hidden");
+          setStatusMsg("Traitement en cours…", "warn");
           await pollStatus();
           pollTimer = setInterval(pollStatus, 2000);
-        } catch (error) {
-          setMessage(error.message, "state-error");
-          startBtn.disabled = false;
+        } catch (err) {
+          setStatusMsg(err.message, "error");
+          btnLaunch.disabled = false;
         }
       }
 
-      pickFilesBtn.addEventListener("click", () => filesInput.click());
-      pickFolderBtn.addEventListener("click", () => folderInput.click());
-      startBtn.addEventListener("click", startProcessing);
-      resetBtn.addEventListener("click", resetUI);
-      copyExportPathBtn.addEventListener("click", async () => {
-        const text = exportPathEl.textContent || "";
-        if (!text) return;
+      async function pollStatus() {
+        if (!currentJobId) return;
         try {
-          await navigator.clipboard.writeText(text);
-          exportMeta.textContent = "Chemin copie dans le presse-papier.";
-        } catch {
-          exportMeta.textContent = "Impossible de copier automatiquement: selectionnez le chemin manuellement.";
+          const res  = await fetch(`/status/${encodeURIComponent(currentJobId)}`);
+          if (!res.ok) throw new Error("Erreur statut");
+          const data = await res.json();
+          renderProgress(data);
+        } catch (err) {
+          setStatusMsg(err.message, "error");
         }
-      });
+      }
 
-      filesInput.addEventListener("change", () => addFiles(filesInput.files));
-      folderInput.addEventListener("change", () => addFiles(folderInput.files));
+      function renderProgress(data) {
+        const pct = data.global_progress ?? 0;
+        progressBar.style.width = `${pct}%`;
+        progressText.textContent = `${pct}% (${data.done}/${data.total})`;
 
-      ["dragenter", "dragover"].forEach((eventName) => {
-        dropzone.addEventListener(eventName, (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          dropzone.classList.add("dragover");
-        });
-      });
+        processingList.innerHTML = "";
+        for (const f of data.files || []) {
+          const li = document.createElement("li");
+          li.className = "processing-item";
 
-      ["dragleave", "drop"].forEach((eventName) => {
-        dropzone.addEventListener(eventName, (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          dropzone.classList.remove("dragover");
-        });
-      });
+          let iconHtml = "";
+          let piClass  = "pending";
+          if (f.status === "processing") { iconHtml = '<div class="spinner"></div>'; piClass = "processing"; }
+          else if (f.status === "done")  { iconHtml = "✅"; piClass = "done"; }
+          else if (f.status === "error") { iconHtml = "❌"; piClass = "error"; }
+          else                           { iconHtml = "⏳"; piClass = "pending"; }
 
-      dropzone.addEventListener("drop", async (event) => {
-        if (event.dataTransfer?.items?.length) {
-          await handleDropItems(event.dataTransfer.items);
-        } else if (event.dataTransfer?.files?.length) {
-          addFiles(event.dataTransfer.files);
+          li.innerHTML = `
+            ${iconHtml}
+            <span class="pi-name" title="${esc(f.relative_path)}">${esc(f.original_name || f.relative_path)}</span>
+            <span class="pi-status ${piClass}">${f.progress}%</span>
+          `;
+          processingList.appendChild(li);
         }
-      });
 
-      refreshDetectedList();
+        const jobStatus  = data.job_status || "";
+        const allDone    = data.done >= data.total && data.total > 0;
+        const jobClosed  = jobStatus === "finished" || jobStatus === "error";
+
+        if (allDone && !jobClosed) {
+          setStatusMsg("Finalisation de l'export…", "warn");
+        }
+
+        if (allDone && jobClosed) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+
+          if (data.redirect_url) {
+            setStatusMsg("Traitement terminé. Redirection…", "ok");
+            setTimeout(() => { window.location.href = data.redirect_url; }, 800);
+          } else {
+            setStatusMsg("Traitement terminé.", "ok");
+          }
+        }
+      }
+
+      function setStatusMsg(text, cls = "") {
+        statusMsg.textContent = text;
+        statusMsg.className = `status-msg ${cls}`.trim();
+      }
+
+      btnLaunch.addEventListener("click", startProcessing);
     </script>
   </body>
-  </html>
+</html>

@@ -6,3 +6,4 @@ PyMuPDF
 pdf2image
 Pillow
 pytesseract
+requests

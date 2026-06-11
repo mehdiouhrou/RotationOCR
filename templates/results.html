@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RotationOCR — Résultats</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        background: #f5f6fa;
+        color: #1a1a2e;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ── Header ── */
+      header {
+        background: #1a1a2e;
+        color: #fff;
+        padding: 0 28px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-shrink: 0;
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+      .brand {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+      }
+      .brand span { color: #4f8ef7; }
+      .header-lot {
+        font-size: 13px;
+        color: rgba(255,255,255,0.6);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .header-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .nav-link {
+        color: rgba(255,255,255,0.82);
+        text-decoration: none;
+        font-size: 14px;
+        padding: 7px 12px;
+        border-radius: 8px;
+        transition: background 0.15s;
+        white-space: nowrap;
+      }
+      .nav-link:hover { background: rgba(255,255,255,0.10); }
+      .btn-logout {
+        background: rgba(255,255,255,0.10);
+        border: 1px solid rgba(255,255,255,0.18);
+        color: #fff;
+        font-size: 14px;
+        padding: 7px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s;
+        white-space: nowrap;
+      }
+      .btn-logout:hover { background: rgba(255,255,255,0.18); }
+
+      /* ── Main ── */
+      main {
+        flex: 1;
+        padding: 36px 24px 64px;
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* ── Stats ── */
+      .stats-row {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 28px;
+      }
+      .stat-card {
+        flex: 1;
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px 24px;
+        box-shadow: 0 2px 10px rgba(26,26,46,0.07);
+        text-align: center;
+      }
+      .stat-number {
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 6px;
+        color: #1a1a2e;
+      }
+      .stat-label {
+        font-size: 13px;
+        color: #6b7280;
+      }
+      .stat-card.ok   .stat-number { color: #16a34a; }
+      .stat-card.warn .stat-number { color: #d97706; }
+
+      /* ── Action principale ── */
+      .action-bar {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px 24px;
+        box-shadow: 0 2px 10px rgba(26,26,46,0.07);
+        margin-bottom: 28px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .btn-download-all {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 28px;
+        background: #16213e;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s, transform 0.1s;
+        box-shadow: 0 4px 14px rgba(22,33,62,0.22);
+      }
+      .btn-download-all:hover { background: #0f3460; transform: translateY(-1px); }
+      .delete-warning {
+        font-size: 13px;
+        color: #d97706;
+        display: none;
+        align-items: center;
+        gap: 6px;
+      }
+      .delete-warning.visible { display: flex; }
+
+      /* ── Filtres ── */
+      .filters {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .filter-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        border: 1.5px solid #e5e7eb;
+        background: #fff;
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .filter-btn:hover   { border-color: #a5b4fc; background: #f5f3ff; }
+      .filter-btn.active  { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+
+      /* ── Grille de cards ── */
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 900px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 560px) { .cards-grid { grid-template-columns: 1fr; } }
+
+      .file-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1.5px solid #e5e7eb;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        box-shadow: 0 1px 6px rgba(26,26,46,0.05);
+        transition: box-shadow 0.15s;
+      }
+      .file-card:hover { box-shadow: 0 4px 16px rgba(26,26,46,0.10); }
+      .file-card.averifier {
+        border-color: #f59e0b;
+        background: #fffbeb;
+      }
+      .file-card.hidden-card { display: none; }
+
+      .card-original {
+        font-size: 11px;
+        color: #9ca3af;
+        font-family: ui-monospace, monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .card-titre {
+        font-size: 15px;
+        font-weight: 700;
+        color: #1a1a2e;
+        line-height: 1.3;
+        word-break: break-word;
+      }
+      .card-titre.empty { color: #9ca3af; font-weight: 400; font-style: italic; }
+      .card-date {
+        font-size: 12px;
+        color: #6b7280;
+        min-height: 16px;
+      }
+
+      /* Barre confiance */
+      .conf-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .conf-track {
+        flex: 1;
+        height: 6px;
+        background: #e5e7eb;
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .conf-bar {
+        height: 100%;
+        border-radius: 99px;
+        transition: width 0.3s;
+      }
+      .conf-bar.high   { background: #16a34a; }
+      .conf-bar.medium { background: #f59e0b; }
+      .conf-bar.low    { background: #ef4444; }
+      .conf-pct { font-size: 12px; color: #6b7280; white-space: nowrap; }
+
+      /* Badge statut */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 20px;
+        width: fit-content;
+      }
+      .badge.ok   { background: #dcfce7; color: #15803d; }
+      .badge.warn { background: #fef3c7; color: #b45309; }
+
+      /* Bouton télécharger */
+      .btn-dl {
+        margin-top: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 9px 14px;
+        border-radius: 8px;
+        border: 1.5px solid #e5e7eb;
+        background: #fff;
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+        cursor: pointer;
+        text-decoration: none;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .btn-dl:hover { border-color: #a5b4fc; background: #f5f3ff; }
+
+      /* Empty state */
+      .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 48px;
+        color: #9ca3af;
+        font-size: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-left">
+        <div class="brand">Rotation<span>OCR</span></div>
+        <div class="header-lot">
+          Lot du <span id="jobDate"></span>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <a class="nav-link" href="/">← Retour</a>
+        <a class="nav-link" href="/exports">📋 Historique</a>
+        <a class="btn-logout" href="/logout">Déconnexion</a>
+      </nav>
+    </header>
+
+    <main>
+
+      {# ── Stats ── #}
+      {% set ok_count   = job.files | selectattr('statut_titre','equalto','ok')         | list | length %}
+      {% set warn_count = job.files | selectattr('statut_titre','equalto','a_verifier') | list | length %}
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-number">{{ job.total }}</div>
+          <div class="stat-label">fichiers traités</div>
+        </div>
+        <div class="stat-card ok">
+          <div class="stat-number">{{ ok_count }}</div>
+          <div class="stat-label">✅ OK</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-number">{{ warn_count }}</div>
+          <div class="stat-label">⚠️ À vérifier</div>
+        </div>
+      </div>
+
+      {# ── Action principale ── #}
+      <div class="action-bar">
+        <button class="btn-download-all" id="btnDownloadAll" type="button">
+          ⬇️ Télécharger tout le lot (ZIP)
+        </button>
+        <div class="delete-warning" id="deleteWarning">
+          ⏱ Ce lot sera supprimé dans 1h
+        </div>
+      </div>
+
+      {# ── Filtres ── #}
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all"   type="button">Tous</button>
+        <button class="filter-btn"        data-filter="ok"    type="button">✅ OK seulement</button>
+        <button class="filter-btn"        data-filter="warn"  type="button">⚠️ À vérifier seulement</button>
+      </div>
+
+      {# ── Cards ── #}
+      <div class="cards-grid" id="cardsGrid">
+        {% for file in job.files %}
+          {# Calcul du chemin de téléchargement avec le nom renommé #}
+          {%- set nom = file.nom_fichier if file.nom_fichier else file.relative_path.split('/')[-1] -%}
+          {%- set dirs = file.relative_path.split('/')[:-1] -%}
+          {%- if dirs -%}
+            {%- set dl_path = dirs | join('/') ~ '/' ~ nom -%}
+          {%- else -%}
+            {%- set dl_path = nom -%}
+          {%- endif -%}
+
+          {%- set is_warn = file.statut_titre == 'a_verifier' -%}
+          {%- set conf    = file.confiance | int -%}
+          {%- set conf_cls = 'high' if conf >= 75 else ('medium' if conf >= 50 else 'low') -%}
+
+          <div class="file-card {{ 'averifier' if is_warn else '' }}"
+               data-statut="{{ file.statut_titre }}">
+
+            <div class="card-original" title="{{ file.original_name }}">
+              {{ file.original_name }}
+            </div>
+
+            <div class="card-titre {{ 'empty' if not file.titre_final }}">
+              {{ file.titre_final if file.titre_final else '— titre non détecté —' }}
+            </div>
+
+            <div class="card-date" data-nom="{{ file.nom_fichier }}"></div>
+
+            <div class="conf-row">
+              <div class="conf-track">
+                <div class="conf-bar {{ conf_cls }}" style="width: {{ conf }}%"></div>
+              </div>
+              <span class="conf-pct">{{ conf }}%</span>
+            </div>
+
+            <div>
+              {% if is_warn %}
+                <span class="badge warn">⚠️ À vérifier</span>
+              {% else %}
+                <span class="badge ok">✅ OK</span>
+              {% endif %}
+            </div>
+
+            <a class="btn-dl" href="/download/{{ job.job_id }}/{{ dl_path }}">
+              ⬇ Télécharger
+            </a>
+          </div>
+        {% else %}
+          <div class="empty-state">Aucun fichier dans ce lot.</div>
+        {% endfor %}
+      </div>
+
+    </main>
+
+    <script>
+      const JOB_ID = {{ job.job_id | tojson }};
+
+      // ── Date du lot ──
+      (function() {
+        const ts = {{ job.created_at }};
+        const d  = new Date(ts * 1000);
+        document.getElementById("jobDate").textContent = d.toLocaleString("fr-FR", {
+          day: "2-digit", month: "long", year: "numeric",
+          hour: "2-digit", minute: "2-digit"
+        });
+      })();
+
+      // ── Dates extraites des noms de fichiers ──
+      document.querySelectorAll(".card-date[data-nom]").forEach(el => {
+        const m = (el.dataset.nom || "").match(/_(\d{4}-\d{2}-\d{2})\.pdf$/i);
+        if (m) el.textContent = "📅 " + m[1];
+      });
+
+      // ── Téléchargement lot + mark_downloaded ──
+      const btnDownloadAll  = document.getElementById("btnDownloadAll");
+      const deleteWarning   = document.getElementById("deleteWarning");
+
+      btnDownloadAll.addEventListener("click", async () => {
+        // Démarre le timer de suppression
+        try {
+          await fetch(`/mark_downloaded/${encodeURIComponent(JOB_ID)}`, { method: "POST" });
+        } catch (e) { /* non bloquant */ }
+
+        deleteWarning.classList.add("visible");
+
+        // Déclenche le téléchargement
+        window.location.href = `/download_all/${encodeURIComponent(JOB_ID)}`;
+      });
+
+      // ── Filtres ──
+      const filterBtns = document.querySelectorAll(".filter-btn");
+      const cards      = document.querySelectorAll(".file-card");
+
+      filterBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          filterBtns.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+
+          const f = btn.dataset.filter;
+          cards.forEach(card => {
+            const statut = card.dataset.statut || "";
+            if (f === "all") {
+              card.classList.remove("hidden-card");
+            } else if (f === "ok") {
+              card.classList.toggle("hidden-card", statut !== "ok");
+            } else if (f === "warn") {
+              card.classList.toggle("hidden-card", statut !== "a_verifier");
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
