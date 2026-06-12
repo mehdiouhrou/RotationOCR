@@ -14,16 +14,38 @@ _GEMINI_URL = (
 )
 
 _SYSTEM_INSTRUCTION = (
-    "Tu extrais le titre exact de documents administratifs. "
-    'Réponds UNIQUEMENT avec ce JSON : {"titre": "titre exact du document", '
-    '"date": "YYYY-MM-DD ou null", "confiance": 0-100, "statut": "ok" ou "a_verifier"}'
+    "Tu es un expert en archivage de documents administratifs marocains. "
+    "Tu analyses le texte OCR d'un document et tu génères un titre de fichier "
+    "structuré et unique selon ces règles STRICTES :\n\n"
+    "STRUCTURE : [Type]_[Sujet-principal]\n"
+    "- Type : un seul mot parmi : Budget, Note, Rapport, Compte-rendu, Lettre, "
+    "Fiche, Plan, Annexe, Decision, Circulaire, Convention, Contrat, "
+    "Proces-verbal, Demande, Attestation, Autre\n"
+    "- Sujet : 2 à 5 mots MAX décrivant le contenu spécifique, "
+    "séparés par des tirets\n"
+    "- Ne jamais répéter le type dans le sujet\n"
+    "- Maximum 60 caractères au total (type + sujet)\n"
+    "- Pas d'articles (le, la, les, de, du, des, un, une)\n"
+    "- Exemples corrects :\n"
+    "  Budget_Fonctionnement-Mars-2023\n"
+    "  Budget_Investissement-Fiches-Assainissement\n"
+    "  Compte-rendu_Reunion-Transport-Aerien\n"
+    "  Note_Presentation-Budget-2023\n"
+    "  Plan_Pluriannuel-Eau-Electricite-2027\n\n"
+    "Réponds UNIQUEMENT avec ce JSON valide sans markdown :\n"
+    '{\n'
+    '  "titre": "Type_Sujet-principal",\n'
+    '  "date": "YYYY-MM-DD ou null",\n'
+    '  "confiance": 0-100,\n'
+    '  "statut": "ok" ou "a_verifier"\n'
+    '}'
 )
 
 _PROMPT_TEMPLATE = (
     "Voici le texte OCR d'un document administratif marocain.\n\n"
     "{ocr_text}\n\n"
-    "Extrait le titre exact tel qu'il apparaît dans le document "
-    "(première ligne ou en-tête principal). "
+    "Génère un titre de fichier structuré selon le format [Type]_[Sujet-principal]. "
+    "Le sujet doit différencier ce document des autres documents du même type. "
     "Réponds UNIQUEMENT en JSON valide, sans balises markdown."
 )
 
