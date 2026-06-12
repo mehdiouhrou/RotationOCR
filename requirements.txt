@@ -5,5 +5,6 @@ python-dotenv
 PyMuPDF
 pdf2image
 Pillow
-pytesseract
+paddleocr
+paddlepaddle
 requests

@@ -1,6 +1,6 @@
 """
 Service de détection et correction de rotation pour PDF scannés.
-Pipeline : pdf2image (dpi=150) → Tesseract (angle + texte, filtre photos)
+Pipeline : pdf2image (dpi=100) → PaddleOCR (angle + texte)
          → PIL rotation → reconstruction PDF → Ghostscript (dpi=200).
 Le texte OCR est extrait AVANT Ghostscript pour préserver la couche texte.
 """
@@ -12,78 +12,72 @@ import shutil
 import subprocess
 
 import fitz  # PyMuPDF
+import numpy as np
 from pdf2image import convert_from_path
-import pytesseract
-from pytesseract import Output
+from paddleocr import PaddleOCR
 
 logger = logging.getLogger(__name__)
 
-_TESSERACT_LANGS = os.environ.get("TESSERACT_LANGS", "fra+ara+eng")
+_ocr = PaddleOCR(use_angle_cls=True, lang='fr', use_gpu=False, show_log=False)
 _OCR_DPI        = 100   # Rapide, suffisant pour extraction texte
 _ROT_DPI        = 200   # Qualité pour archivage
 _MAX_OCR_PAGES  = 5     # Pages analysées pour le texte OCR
-_MIN_TEXT_WORDS = 5     # Seuil mots fiables pour distinguer page-texte / photo
 
 
 # ---------------------------------------------------------------------------
 # Helpers privés
 # ---------------------------------------------------------------------------
 
-def _images_from_pdf(pdf_path: str, dpi: int, max_pages: int | None = None):
-    """Convertit les premières pages d'un PDF en liste d'images PIL."""
-    kwargs: dict = {"dpi": dpi, "first_page": 1}
-    if max_pages:
-        kwargs["last_page"] = max_pages
-    return convert_from_path(pdf_path, **kwargs)
+def _cls_is_upright(cls_result) -> bool:
+    """True = 0°, False = 180°."""
+    if not cls_result:
+        return True
+    entry = cls_result[0] if isinstance(cls_result, list) else cls_result
+    if isinstance(entry, (list, tuple)) and entry:
+        label = entry[0]
+    else:
+        label = entry
+    return str(label) == "0"
 
 
-def _run_tesseract(images) -> tuple[int, str]:
+def _text_from_ocr_result(result) -> str:
+    if not result or not result[0]:
+        return ""
+    parts: list[str] = []
+    for line in result[0]:
+        if line and len(line) >= 2 and line[1]:
+            parts.append(line[1][0])
+    return " ".join(parts)
+
+
+def _extract_text_and_angle(pdf_path: str) -> tuple[int, str]:
     """
-    Depuis une liste d'images PIL, en un seul appel Tesseract par page :
-      - Détecte l'angle de rotation via OSD (page 1 uniquement)
-      - Extrait le texte OCR via image_to_data (--psm 3)
-        et ignore les pages-photos (< _MIN_TEXT_WORDS mots conf > 30)
-
-    Retourne (rotation_angle, ocr_text).
+    Convertit les 5 premières pages en images (100 dpi), exécute PaddleOCR
+    sur chaque page, déduit l'angle global (majorité 180°) et concatène le texte.
     """
-    rotation_angle = 0
+    images = convert_from_path(
+        pdf_path, dpi=_OCR_DPI, first_page=1, last_page=_MAX_OCR_PAGES,
+    )
     text_parts: list[str] = []
+    cls_flags: list[bool] = []
 
     for i, img in enumerate(images):
-        gray = img.convert("L")
-
-        # OSD sur la première page seulement
-        if i == 0:
-            try:
-                osd = pytesseract.image_to_osd(gray)
-                for line in osd.split("\n"):
-                    if "Rotate" in line:
-                        rotation_angle = int(line.split(":")[1].strip())
-                        break
-                logger.info("Tesseract OSD: angle=%s°", rotation_angle)
-            except Exception as exc:
-                logger.warning("Tesseract OSD échoué (page 1): %s", exc)
-
-        # Un seul appel : détection photo + extraction texte fusionnés
+        img_array = np.array(img.convert("RGB"))
         try:
-            data = pytesseract.image_to_data(
-                gray,
-                lang=_TESSERACT_LANGS,
-                output_type=Output.DICT,
-                config="--psm 3",
-            )
-            words = [
-                txt for txt, conf in zip(data["text"], data["conf"])
-                if txt.strip() and int(conf) > 30
-            ]
-            if len(words) < _MIN_TEXT_WORDS:
-                logger.debug("Page %d ignorée (photo ou vide, %d mots)", i + 1, len(words))
-                continue
-            text_parts.append(" ".join(words))
-        except Exception as exc:
-            logger.warning("Tesseract image_to_data page %d: %s", i + 1, exc)
+            cls_result = _ocr.ocr(img_array, det=False, rec=False, cls=True)
+            cls_flags.append(_cls_is_upright(cls_result))
 
-    return rotation_angle, "\n".join(text_parts)
+            ocr_result = _ocr.ocr(img_array, cls=True)
+            page_text = _text_from_ocr_result(ocr_result)
+            if page_text.strip():
+                text_parts.append(page_text)
+        except Exception as exc:
+            logger.warning("PaddleOCR page %d: %s", i + 1, exc)
+            cls_flags.append(True)
+
+    upside_down = sum(1 for upright in cls_flags if not upright)
+    angle = 180 if cls_flags and upside_down > len(cls_flags) / 2 else 0
+    return angle, "\n".join(text_parts)
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +95,7 @@ def rotate_and_compress_pdf(input_path: str, output_path: str, rotation_angle: i
             # Conversion pages → images PIL à _ROT_DPI
             images = convert_from_path(input_path, dpi=_ROT_DPI)
 
-            # Rotation PIL — sens contraire au sens Tesseract pour corriger
+            # Rotation PIL — sens contraire pour corriger l'orientation détectée
             rotated = [img.rotate(-rotation_angle, expand=True) for img in images]
 
             # Reconstruction PDF PyMuPDF depuis images PIL
@@ -155,10 +149,8 @@ def rotate_and_compress_pdf(input_path: str, output_path: str, rotation_angle: i
 def process_pdf_rotation(input_path: str, output_dir: str) -> tuple[str | None, int, bool, str]:
     """
     Traite un PDF complet :
-      1. Conversion → images PIL à 150 dpi (rapide)
-      2. Tesseract : angle OSD (page 1) + texte des pages-texte (filtre photos)
-         — un seul appel image_to_data par page
-      3. Rotation PIL + compression Ghostscript à 200 dpi
+      1. PaddleOCR sur les 5 premières pages (100 dpi) : angle + texte
+      2. Rotation PIL + compression Ghostscript à 200 dpi
 
     Retourne (chemin_sortie, angle_détecté, succès, ocr_text).
     """
@@ -166,17 +158,12 @@ def process_pdf_rotation(input_path: str, output_dir: str) -> tuple[str | None, 
         filename    = os.path.basename(input_path)
         output_path = os.path.join(output_dir, filename)
 
-        # 1. Images basse résolution pour OCR (rapide)
-        images = _images_from_pdf(input_path, dpi=_OCR_DPI, max_pages=_MAX_OCR_PAGES)
-
-        # 2. Détection angle + extraction texte (un appel Tesseract/page, filtre photos)
-        rotation_angle, ocr_text = _run_tesseract(images)
+        rotation_angle, ocr_text = _extract_text_and_angle(input_path)
         logger.info(
             "OCR terminé: %d caractères extraits, angle=%s°",
             len(ocr_text), rotation_angle,
         )
 
-        # 3. Rotation PIL + compression GS (texte déjà extrait avant cette étape)
         success = rotate_and_compress_pdf(input_path, output_path, rotation_angle)
 
         if success:
