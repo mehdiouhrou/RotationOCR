@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import time
 import unicodedata
 
 import requests
@@ -105,18 +106,34 @@ def extract_title(ocr_text: str, original_filename: str) -> dict:
         "systemInstruction": {"parts": [{"text": _SYSTEM_INSTRUCTION}]},
     }
 
-    try:
-        resp = requests.post(
-            _GEMINI_URL,
-            params={"key": api_key},
-            json=payload,
-            timeout=15,
-        )
-        resp.raise_for_status()
-        raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-        gemini_result = json.loads(raw_text)
-    except Exception as exc:
-        logger.warning("ai_titler: erreur API ou JSON invalide: %s", exc)
+    gemini_result = None
+    for attempt in range(2):
+        if attempt > 0:
+            time.sleep(2)
+        try:
+            resp = requests.post(
+                _GEMINI_URL,
+                params={"key": api_key},
+                json=payload,
+                timeout=15,
+            )
+            if resp.status_code == 429:
+                logger.warning(
+                    "ai_titler: 429 Too Many Requests (tentative %d/2)",
+                    attempt + 1,
+                )
+                if attempt == 1:
+                    return fallback()
+                continue
+            resp.raise_for_status()
+            raw_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            gemini_result = json.loads(raw_text)
+            break
+        except Exception as exc:
+            logger.warning("ai_titler: erreur API ou JSON invalide: %s", exc)
+            return fallback()
+
+    if gemini_result is None:
         return fallback()
 
     try:
