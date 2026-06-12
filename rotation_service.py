@@ -19,7 +19,7 @@ from pytesseract import Output
 logger = logging.getLogger(__name__)
 
 _TESSERACT_LANGS = os.environ.get("TESSERACT_LANGS", "fra+ara+eng")
-_OCR_DPI        = 150   # Rapide, suffisant pour extraction texte
+_OCR_DPI        = 100   # Rapide, suffisant pour extraction texte
 _ROT_DPI        = 200   # Qualité pour archivage
 _MAX_OCR_PAGES  = 5     # Pages analysées pour le texte OCR
 _MIN_TEXT_WORDS = 5     # Seuil mots fiables pour distinguer page-texte / photo
