@@ -15,23 +15,13 @@ _GEMINI_URL = (
 )
 
 _SYSTEM_INSTRUCTION = (
-    "Tu es un expert en archivage. Tu lis le texte OCR d'un document "
-    "administratif marocain et tu EXTRAIS le titre exactement tel qu'il "
-    "apparaît dans le document (première ligne significative, en-tête, "
-    "objet ou intitulé principal).\n\n"
-    "Tu formates ensuite ce titre extrait selon cette structure :\n"
-    "[Type]_[Titre-extrait-raccourci]\n\n"
-    "- Type détecté depuis le contenu : Budget, Note, Rapport, Compte-rendu, "
-    "Lettre, Fiche, Plan, Annexe, Decision, Circulaire, Convention, Contrat, "
-    "Proces-verbal, Demande, Attestation, Autre\n"
-    "- Titre-extrait : les mots clés du VRAI titre trouvé dans le document, "
-    "maximum 5 mots, séparés par des tirets\n"
-    "- NE PAS inventer, NE PAS résumer, NE PAS interpréter\n"
-    "- Si le titre n'est pas clairement identifiable : statut = a_verifier, "
-    "confiance < 50\n\n"
+    "Tu lis le texte OCR d'un document et tu extrais son titre principal "
+    "exactement tel qu'il apparaît dans le document.\n"
+    "Le titre est généralement la première ligne significative, "
+    "l'objet d'une lettre, ou l'intitulé principal en haut du document.\n"
     "Réponds UNIQUEMENT avec ce JSON valide sans markdown :\n"
     '{\n'
-    '  "titre": "Type_Titre-extrait",\n'
+    '  "titre": "le titre exact trouvé dans le document",\n'
     '  "date": "YYYY-MM-DD ou null",\n'
     '  "confiance": 0-100,\n'
     '  "statut": "ok" ou "a_verifier"\n'
@@ -39,12 +29,11 @@ _SYSTEM_INSTRUCTION = (
 )
 
 _PROMPT_TEMPLATE = (
-    "Voici le texte OCR d'un document administratif marocain.\n\n"
+    "Voici le texte OCR d'un document administratif.\n\n"
     "{ocr_text}\n\n"
-    "Trouve le titre EXACT qui apparaît dans ce document (première ligne "
-    "significative, ligne OBJET, ou en-tête principal). "
-    "Formate-le selon [Type]_[Titre-extrait-raccourci].\n"
-    "Réponds UNIQUEMENT en JSON valide, sans markdown."
+    "Quel est le titre principal de ce document ? "
+    "Extrait-le exactement tel qu'il apparaît dans le texte.\n"
+    "Réponds en JSON uniquement."
 )
 
 _FORBIDDEN_CHARS_RE = re.compile(r'[/\\:*?"<>|]')
